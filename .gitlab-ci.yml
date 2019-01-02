@@ -1,0 +1,18 @@
+
+pages:
+  script:
+  - apt update
+  - apt install \-y make curl wget python3
+  - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
+  - python3 ./get-pip.py
+  - pip install sphinx
+  - pip install -r ./requirements.txt
+  - cd ./docs
+  - make html
+  - mkdir ../public
+  - cp -r ./build/html ../public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master

@@ -1,0 +1,1 @@
+"""An SSH automation library... moduleauthor:: Red_M <redssh_docs@red-m.net>"""from . import redsshRedSSH = redssh.RedSSH
