@@ -8,6 +8,7 @@
 
 """
 
+import os
 import re
 import paramiko
 import paramiko_expect
@@ -29,8 +30,8 @@ class RedSSH(object):
     def __pexpect_and_paramiko_expect_bind__(self):
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
-        self.PROMPT_SET_SH = r"PS1='[PEXPECT]\$ '"
-        self.PROMPT_SET_CSH = r"set prompt='[PEXPECT]\$ '"
+        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '"
+        self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
         self.expect = self.screen.expect
         self.sendline = self.screen.send
     
@@ -46,20 +47,32 @@ class RedSSH(object):
         self.screen.expect(self.prompt)
         self.past_login = True
         self.__pexpect_and_paramiko_expect_bind__()
-        self.get_unique_prompt()
+        self.set_unique_prompt()
     
-    def get_unique_prompt(self,use_basic_prompt=True):
+    def get_unique_prompt(self):
+        return(re.escape(self.command('',raw=True)[1:])) # A smart-ish way to get the current prompt after a dumb prompt match
+    
+    def set_unique_prompt(self,use_basic_prompt=True,set_prompt=False):
         if use_basic_prompt==True:
             self.prompt = self.basic_prompt
-        self.prompt = re.escape(self.command('',raw=True)[1:]) # A smart-ish way to get the current prompt after a dumb prompt match
+        if set_prompt==True:
+            self.command(self.PROMPT_SET_SH)
+        self.prompt = self.get_unique_prompt()
     
-    def command(self,cmd,raw=False):
+    def command(self,cmd,raw=False,prompt_change=False,reset_prompt=False):
         self.sendline(cmd)
-        self.expect(self.prompt)
+        
+        if prompt_change==True:
+            self.expect(self.basic_prompt)
+            self.set_unique_prompt(set_prompt=reset_prompt)
+        elif prompt_change==False:
+            self.expect(self.prompt)
+        
         if raw==False:
             out = self.screen.current_output_clean[:-1] # always adds a new line for whatever reason
         elif raw==True:
             out = self.screen.current_output
+        
         return(out)
     
     def sudo(self,password,sudo=True,su_cmd='su -'):
@@ -70,12 +83,32 @@ class RedSSH(object):
         self.expect('[Pp]assword.+?')
         self.sendline(password)
         self.expect(self.basic_prompt)
-        self.get_unique_prompt()
+        self.set_unique_prompt()
         
     
     def start_scp(self):
-        if not self.__check_for_attr__('scp_client'):
-            self.scp = self.client.open_sftp()
+        if not self.__check_for_attr__('sftp_client'):
+            self.sftp_client = self.client.open_sftp()
+    
+    def sftp_put_folder(self,local_path,remote_path,recursive=False):
+        if self.__check_for_attr__('sftp_client'):
+            for dirpath, dirnames, filenames in os.walk(local_path):
+                for dirname in dirnames:
+                    local_dir_path = os.path.join(local_path, dirname)
+                    remote_dir_path = os.path.join(remote_path, dirname)
+                    if not dirname in self.sftp_client.listdir(remote_path):
+                        self.sftp_client.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
+                    if recursive==True:
+                        self.sftp_put_folder(local_dir_path,remote_dir_path,recursive)
+                for filename in filenames:
+                    local_file_path = os.path.join(dirpath, filename)
+                    remote_file_path = os.path.join(remote_path, filename)
+                    if os.path.sep.join(local_file_path.split(os.path.sep)[:-1])==local_path:
+                        self.sftp_put_file(local_file_path,remote_file_path)
+    
+    def sftp_put_file(self,local_path,remote_path):
+        self.sftp_client.put(local_path,remote_path)
+        self.sftp_client.chmod(remote_path,os.stat(local_path).st_mode)
     
     def exit(self):
         if self.__check_for_attr__('past_login'):
