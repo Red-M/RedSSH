@@ -1,2 +1,0 @@
-paramiko
-paramiko_expect

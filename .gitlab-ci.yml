@@ -6,7 +6,7 @@ pages:
   - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
   - python3 ./get-pip.py
   - pip install sphinx
-  - pip install -r ./requirements.txt
+  - pip install ./
   - cd ./docs
   - make html
   - mkdir ../public
