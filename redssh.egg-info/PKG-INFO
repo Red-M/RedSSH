@@ -1,0 +1,17 @@
+Metadata-Version: 1.1
+Name: redssh
+Version: 0.0.1
+Summary: An SSH automation library.
+Home-page: UNKNOWN
+Author: Red_M
+Author-email: redssh_pypi@red-m.net
+License: GPLv2
+Description: # RedSSH
+        
+Platform: Posix
+Classifier: Development Status :: 4 - Beta
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Intended Audience :: Developers

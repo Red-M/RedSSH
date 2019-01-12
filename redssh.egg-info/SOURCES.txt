@@ -1,0 +1,8 @@
+setup.cfg
+redssh/__init__.py
+redssh/redssh.py
+redssh.egg-info/PKG-INFO
+redssh.egg-info/SOURCES.txt
+redssh.egg-info/dependency_links.txt
+redssh.egg-info/requires.txt
+redssh.egg-info/top_level.txt

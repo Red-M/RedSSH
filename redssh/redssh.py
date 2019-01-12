@@ -1,4 +1,4 @@
-"""
+'''
 .. module:: redssh
    :platform: Unix
    :synopsis: Offers the RedSSH automation layer.
@@ -6,7 +6,7 @@
 .. moduleauthor:: Red_M <redssh_docs@red-m.net>
 
 
-"""
+'''
 
 import os
 import re
@@ -15,6 +15,8 @@ import paramiko_expect
 
 class RedSSH(object):
     def __init__(self,ssh_key_policy=None,prompt=r'.+?[#$]\s+',unique_prompt=False,encoding='utf8',**kwargs):
+        '''
+        '''
         self.debug = False
         self.encoding = encoding
         self.basic_prompt = prompt
@@ -28,6 +30,8 @@ class RedSSH(object):
         self.quit = self.exit
     
     def __pexpect_and_paramiko_expect_bind__(self):
+        '''
+        '''
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
         self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '"
@@ -36,12 +40,18 @@ class RedSSH(object):
         self.sendline = self.screen.send
     
     def __check_for_attr__(self,attr):
+        '''
+        '''
         return(attr in self.__dict__)
     
     def set_ssh_key_policy(self,ssh_key_policy):
+        '''
+        '''
         self.client.set_missing_host_key_policy(ssh_key_policy)
     
     def connect(self,**kwargs):
+        '''
+        '''
         self.client.connect(**kwargs)
         self.screen = paramiko_expect.SSHClientInteraction(self.client, tty_width=0, tty_height=0, display=self.debug)
         self.screen.expect(self.prompt)
@@ -50,9 +60,13 @@ class RedSSH(object):
         self.set_unique_prompt()
     
     def get_unique_prompt(self):
+        '''
+        '''
         return(re.escape(self.command('',raw=True)[1:])) # A smart-ish way to get the current prompt after a dumb prompt match
     
     def set_unique_prompt(self,use_basic_prompt=True,set_prompt=False):
+        '''
+        '''
         if use_basic_prompt==True:
             self.prompt = self.basic_prompt
         if set_prompt==True:
@@ -60,6 +74,8 @@ class RedSSH(object):
         self.prompt = self.get_unique_prompt()
     
     def command(self,cmd,raw=False,prompt_change=False,reset_prompt=False):
+        '''
+        '''
         self.sendline(cmd)
         
         if prompt_change==True:
@@ -76,21 +92,27 @@ class RedSSH(object):
         return(out)
     
     def sudo(self,password,sudo=True,su_cmd='su -'):
+        '''
+        '''
         cmd = 'sudo'
         if sudo==False:
             cmd = su_cmd
         self.sendline(cmd)
-        self.expect('[Pp]assword.+?')
+        self.expect('.+?asswor.+?\s+')
         self.sendline(password)
         self.expect(self.basic_prompt)
         self.set_unique_prompt()
         
     
     def start_scp(self):
+        '''
+        '''
         if not self.__check_for_attr__('sftp_client'):
             self.sftp_client = self.client.open_sftp()
     
-    def sftp_put_folder(self,local_path,remote_path,recursive=False):
+    def put_folder(self,local_path,remote_path,recursive=False):
+        '''
+        '''
         if self.__check_for_attr__('sftp_client'):
             for dirpath, dirnames, filenames in os.walk(local_path):
                 for dirname in dirnames:
@@ -99,18 +121,23 @@ class RedSSH(object):
                     if not dirname in self.sftp_client.listdir(remote_path):
                         self.sftp_client.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
                     if recursive==True:
-                        self.sftp_put_folder(local_dir_path,remote_dir_path,recursive)
+                        self.put_folder(local_dir_path,remote_dir_path,recursive)
                 for filename in filenames:
                     local_file_path = os.path.join(dirpath, filename)
                     remote_file_path = os.path.join(remote_path, filename)
                     if os.path.sep.join(local_file_path.split(os.path.sep)[:-1])==local_path:
-                        self.sftp_put_file(local_file_path,remote_file_path)
+                        self.put_file(local_file_path,remote_file_path)
     
-    def sftp_put_file(self,local_path,remote_path):
-        self.sftp_client.put(local_path,remote_path)
-        self.sftp_client.chmod(remote_path,os.stat(local_path).st_mode)
+    def put_file(self,local_path,remote_path):
+        '''
+        '''
+        if self.__check_for_attr__('sftp_client'):
+            self.sftp_client.put(local_path,remote_path)
+            self.sftp_client.chmod(remote_path,os.stat(local_path).st_mode)
     
     def exit(self):
+        '''
+        '''
         if self.__check_for_attr__('past_login'):
             if self.past_login==True:
                 self.client.close()
