@@ -21,7 +21,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='redssh',
-    version='0.0.1',
+    version='1.0.0',
     url='',
     license='GPLv2',
     author='Red_M',

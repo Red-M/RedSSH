@@ -1,4 +1,6 @@
+README.md
 setup.cfg
+setup.py
 redssh/__init__.py
 redssh/redssh.py
 redssh.egg-info/PKG-INFO
