@@ -13,5 +13,5 @@ You can install via pip with `pip install redssh` or the latest commit which may
 
 # Documentation
 
-This should be released soon however right now there isn't any.
-I do have autodocs setup but it is only generating inside my own git setup.
+[Now with autodocs!](https://redssh.readthedocs.io/en/latest/ "Docs! :)")
+

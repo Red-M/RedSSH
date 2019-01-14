@@ -25,6 +25,11 @@ deps = [
     'paramiko'
 ]
 
+doc_deps = [
+    'sphinx',
+    'sphinx_rtd_theme'
+]
+
 
 setuptools.setup(
     name='redssh',
@@ -41,7 +46,7 @@ setuptools.setup(
     install_requires=deps,
     extras_require={
         'tests':deps,
-        'docs':deps+['sphinx','sphinx_rtd_theme']
+        'docs':deps+docs_deps
     },
     classifiers=[
         'Development Status :: 4 - Beta',

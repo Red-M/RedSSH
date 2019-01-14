@@ -1,5 +1,5 @@
-Bartmoss documentation
+RedSSH documentation
 *********************
 
-.. autoclass:: bartmoss.Demon
-.. automodule:: bartmoss
+.. autoclass:: redssh.RedSSH
+.. automodule:: redssh
