@@ -1,27 +1,28 @@
 .build_image_template: &build_image
-  - apt update
-  - apt install \-y make curl wget python3
-  - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
-  - python3 ./get-pip.py
-  - pip install sphinx
-  - pip install ./
+    script:
+    - apt update
+    - apt install \-y make curl wget python3
+    - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
+    - python3 ./get-pip.py
+    - pip install sphinx
+    - pip install ./
 
 
 pages:
-  script:
-  <<: *build_image
-  - cd ./docs
-  - make html
-  - mkdir ../public
-  - cp -r ./build/html ../public
-  artifacts:
-    paths:
-    - public
-  only:
-  - master
+    <<: *build_image
+    script:
+    - cd ./docs
+    - make html
+    - mkdir ../public
+    - cp -r ./build/html ../public
+    artifacts:
+        paths:
+        - public
+    only:
+    - master
 
 .readthedocs:
-  script:
-  <<: *build_image
-  - pip install mkdocs
+    <<: *build_image
+    script:
+    - pip install mkdocs
 
