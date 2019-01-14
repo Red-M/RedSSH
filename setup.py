@@ -41,7 +41,7 @@ setuptools.setup(
     install_requires=deps,
     extras_require={
         'tests':deps,
-        'docs':deps
+        'docs':deps+['sphinx','sphinx_rtd_theme']
     },
     classifiers=[
         'Development Status :: 4 - Beta',
