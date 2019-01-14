@@ -1,4 +1,5 @@
-.build_image_template:
+
+pages:
     script:
     - apt update
     - apt install \-y make curl wget python3
@@ -6,11 +7,6 @@
     - python3 ./get-pip.py
     - pip install sphinx
     - pip install ./
-
-
-pages:
-    extends: .build_image_template
-    script:
     - cd ./docs
     - make html
     - mkdir ../public
@@ -20,9 +16,3 @@ pages:
         - public
     only:
     - master
-
-.readthedocs:
-    extends: .build_image_template
-    script:
-    - pip install mkdocs
-
