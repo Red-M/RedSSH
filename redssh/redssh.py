@@ -32,7 +32,7 @@ import paramiko_expect
 class RedSSH(object):
     '''
     Instances the start of an SSH connection.
-    Extra options are available at :func:`self.connect` time.
+    Extra options are available at :func:`redssh.RedSSH.connect` time.
     
     :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.RejectPolicy`
     :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
@@ -82,7 +82,7 @@ class RedSSH(object):
     
     def connect(self,**kwargs):
         '''
-        All options for this are in :py:func:`paramiko.client.connect`
+        All options for this are in :ref:py:func:`paramiko.client.connect`
         '''
         self.client.connect(**kwargs)
         self.screen = paramiko_expect.SSHClientInteraction(self.client, tty_width=0, tty_height=0, display=self.debug)
@@ -174,7 +174,9 @@ class RedSSH(object):
         '''
         Upload an entire folder via SFTP to the remote session. Similar to `cp /files/* /target`
         Also retains file permissions.
-        .. warning:: Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
+        
+        .. warning::
+        Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
         
         :param local_path: The local path, on the machine where your code is running from, to upload from.
         :type local_path: `str`
@@ -202,7 +204,9 @@ class RedSSH(object):
         '''
         Upload file via SFTP to the remote session. Similar to `cp /files/file /target`.
         Also retains file permissions.
-        .. warning:: Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
+        
+        .. warning::
+        Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
         
         :param local_path: The local path, on the machine where your code is running from, to upload from.
         :type local_path: `str`
