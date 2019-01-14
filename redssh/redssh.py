@@ -30,20 +30,20 @@ import paramiko
 import paramiko_expect
 
 class RedSSH(object):
+    '''
+    Instances the start of an SSH connection.
+    Extra options are available at :func:`self.connect` time.
+    
+    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.RejectPolicy`
+    :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
+    :param prompt: The basic prmopt to expect for the first command line.
+    :type prompt: `rstring`
+    :param unique_prompt: Should a unique prompt be attempted to be used for matching?
+    :type unique_prompt: `bool`
+    :param encoding: Set the encoding to something other than the default of `'utf8'` when your target SSH server doesn't return UTF-8.
+    :type encoding: `str`
+    '''
     def __init__(self,ssh_key_policy=None,prompt=r'.+?[#$]\s+',unique_prompt=False,encoding='utf8',**kwargs):
-        '''
-        Instances the start of an SSH connection.
-        Extra options are available at :func:`self.connect` time.
-        
-        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.RejectPolicy`
-        :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
-        :param prompt: The basic prmopt to expect for the first command line.
-        :type prompt: `rstring`
-        :param unique_prompt: Should a unique prompt be attempted to be used for matching?
-        :type unique_prompt: `bool`
-        :param encoding: Set the encoding to something other than the default of `'utf8'` when your target SSH server doesn't return UTF-8.
-        :type encoding: `str`
-        '''
         self.debug = False
         self.encoding = encoding
         self.basic_prompt = prompt
