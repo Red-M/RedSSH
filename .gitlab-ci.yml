@@ -1,5 +1,5 @@
 .build_image_template:
-    script: &build_image
+    script:
     - apt update
     - apt install \-y make curl wget python3
     - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
@@ -9,8 +9,8 @@
 
 
 pages:
+    extends: .build_image_template
     script:
-    <<: *build_image
     - cd ./docs
     - make html
     - mkdir ../public
@@ -22,7 +22,7 @@ pages:
     - master
 
 .readthedocs:
+    extends: .build_image_template
     script:
-    <<: *build_image
     - pip install mkdocs
 
