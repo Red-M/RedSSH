@@ -15,18 +15,18 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../'))
-import  redssh
+import redssh
 
 # -- Project information -----------------------------------------------------
 
-project = u' redssh'
+project = u'redssh'
 copyright = u'2018, Red_M'
 author = u'Red_M'
 
 # The short X.Y version
-version = u''
+version = u'1.0.1'
 # The full version, including alpha/beta/rc tags
-release = u'0.0.1'
+release = version+' stable'
 
 
 # -- General configuration ---------------------------------------------------
@@ -110,7 +110,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = ' redsshdoc'
+htmlhelp_basename = 'redsshdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -137,7 +137,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, ' redssh.tex', u' redssh Documentation',
+    (master_doc, 'redssh.tex', u'redssh Documentation',
      u'Red\\_M', 'manual'),
 ]
 
@@ -147,7 +147,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'doomguy', u' redssh Documentation',
+    (master_doc, 'redssh', u'redssh Documentation',
      [author], 1)
 ]
 
@@ -158,8 +158,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, ' redssh', u' redssh Documentation',
-     author, ' redssh', 'One line description of project.',
+    (master_doc, 'redssh', u'redssh Documentation',
+     author, 'redssh', 'One line description of project.',
      'Miscellaneous'),
 ]
 

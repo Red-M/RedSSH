@@ -19,10 +19,17 @@ import setuptools
 with open('README.md', 'r') as fh:
     long_description = fh.read()
 
+
+deps = [
+    'paramiko_expect',
+    'paramiko'
+]
+
+
 setuptools.setup(
     name='redssh',
-    version='1.0.0',
-    url='',
+    version='1.0.1',
+    url='https://bitbucket.org/Red_M/RedSSH',
     license='GPLv2',
     author='Red_M',
     author_email='redssh_pypi@red-m.net',
@@ -31,13 +38,13 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     packages=setuptools.find_packages(),
     platforms='Posix',
-    install_requires=[
-        'paramiko_expect',
-        'paramiko',
-    ],
+    install_requires=deps,
+    extras_require={
+        'tests':deps,
+        'docs':deps
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
