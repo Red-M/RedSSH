@@ -82,7 +82,7 @@ class RedSSH(object):
     
     def connect(self,**kwargs):
         '''
-        All options for this are in :ref:py:func:`paramiko.client.connect`
+        All options for this are in :ref:`paramiko.client.connect() <paramiko:api/client.html>`
         '''
         self.client.connect(**kwargs)
         self.screen = paramiko_expect.SSHClientInteraction(self.client, tty_width=0, tty_height=0, display=self.debug)
@@ -176,6 +176,7 @@ class RedSSH(object):
         Also retains file permissions.
         
         .. warning::
+        
         Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
         
         :param local_path: The local path, on the machine where your code is running from, to upload from.
@@ -206,6 +207,7 @@ class RedSSH(object):
         Also retains file permissions.
         
         .. warning::
+        
         Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
         
         :param local_path: The local path, on the machine where your code is running from, to upload from.
