@@ -46,7 +46,7 @@ setuptools.setup(
     install_requires=deps,
     extras_require={
         'tests':deps,
-        'docs':deps+docs_deps
+        'docs':deps+doc_deps
     },
     classifiers=[
         'Development Status :: 4 - Beta',
