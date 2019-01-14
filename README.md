@@ -12,6 +12,6 @@ You can install via pip with `pip install redssh` or the latest commit which may
 
 
 # Documentation
-
+[![Documentation Status](https://readthedocs.org/projects/redssh/badge/?version=latest)](https://redssh.readthedocs.io/en/latest/?badge=latest)
 [Now with autodocs!](https://redssh.readthedocs.io/en/latest/ "Docs! :)")
 
