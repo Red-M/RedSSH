@@ -188,8 +188,8 @@ epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-'https://docs.python.org/': None
-'paramiko': ('https://docs.paramiko.org/en/2.4/', None)
+    'https://docs.python.org/': None,
+    'paramiko': ('https://docs.paramiko.org/en/2.4/', None)
 }
 
 # -- Options for todo extension ----------------------------------------------
