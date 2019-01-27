@@ -37,7 +37,7 @@ class RedSSH(object):
     :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.RejectPolicy`
     :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
     :param prompt: The basic prmopt to expect for the first command line.
-    :type prompt: `rstring`
+    :type prompt: `regex string`
     :param unique_prompt: Should a unique prompt be attempted to be used for matching?
     :type unique_prompt: `bool`
     :param encoding: Set the encoding to something other than the default of `'utf8'` when your target SSH server doesn't return UTF-8.
@@ -82,7 +82,7 @@ class RedSSH(object):
     
     def connect(self,**kwargs):
         '''
-        All options for this are in :ref:`paramiko.client.connect() <paramiko:api/client.html>`
+        All options for this are in :ref:`paramiko.client.connect() <paramiko:api/client.html#paramiko.client.SSHClient.connect>`
         '''
         self.client.connect(**kwargs)
         self.screen = paramiko_expect.SSHClientInteraction(self.client, tty_width=0, tty_height=0, display=self.debug)
