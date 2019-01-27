@@ -82,7 +82,7 @@ class RedSSH(object):
     
     def connect(self,**kwargs):
         '''
-        All options for this are in :ref:`paramiko.client.connect() <paramiko:api/client.html#paramiko.client.SSHClient.connect>`
+        All options for this are in :ref:`paramiko.client.connect() <paramiko:paramiko.client.SSHClient.connect>`
         '''
         self.client.connect(**kwargs)
         self.screen = paramiko_expect.SSHClientInteraction(self.client, tty_width=0, tty_height=0, display=self.debug)
