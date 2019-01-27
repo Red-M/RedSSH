@@ -186,11 +186,16 @@ epub_exclude_files = ['search.html']
 # -- Extension configuration -------------------------------------------------
 
 # -- Options for intersphinx extension ---------------------------------------
+# Tell sphinx what the primary language being documented is.
+primary_domain = 'py'
+
+# Tell sphinx what the pygments highlight language should be.
+highlight_language = 'py'
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'paramiko': ('https://docs.paramiko.org/en/2.4/', None)
+    'paramiko': ('https://docs.paramiko.org/en/stable/', None)
 }
 
 # -- Options for todo extension ----------------------------------------------
