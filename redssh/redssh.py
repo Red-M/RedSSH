@@ -56,15 +56,16 @@ class RedSSH(object):
             self.set_ssh_key_policy(ssh_key_policy)
         self.quit = self.exit
 
-    def __pexpect_and_paramiko_expect_bind__(self):
-        '''
-        This is an internal binder to make use of the pexpect function names for paramiko_expect.
-        '''
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
         #: blah
         self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '"
         self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
+
+    def __pexpect_and_paramiko_expect_bind__(self):
+        '''
+        This is an internal binder to make use of the pexpect function names for paramiko_expect.
+        '''
         self.expect = self.screen.expect
         self.sendline = self.screen.send
 
