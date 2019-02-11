@@ -72,7 +72,7 @@ class RedSSH(object):
 
     def set_ssh_key_policy(self,ssh_key_policy):
         '''
-        Just a shortcut for `paramiko.client.set_missing_host_key_policy`
+        Just a shortcut for :py:meth:`paramiko.client.SSHClient.set_missing_host_key_policy`
 
         :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy` needs to be one of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.WarningPolicy` :py:class:`paramiko.client.AutoAddPolicy`
         :type ssh_key_policy: `class`
