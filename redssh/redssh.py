@@ -62,7 +62,7 @@ class RedSSH(object):
         '''
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
-        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '"
+        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" #:
         self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
         self.expect = self.screen.expect
         self.sendline = self.screen.send
