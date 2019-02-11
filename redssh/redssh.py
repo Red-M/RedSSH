@@ -34,8 +34,8 @@ class RedSSH(object):
     Instances the start of an SSH connection.
     Extra options are available at :func:`redssh.RedSSH.connect` time.
 
-    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.SSHClient.RejectPolicy`
-    :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
+    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy`
+    :type ssh_key_policy: One of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.AutoAddPolicy`
     :param prompt: The basic prmopt to expect for the first command line.
     :type prompt: `regex string`
     :param unique_prompt: Should a unique prompt be attempted to be used for matching?
@@ -74,7 +74,7 @@ class RedSSH(object):
         '''
         Just a shortcut for `paramiko.client.set_missing_host_key_policy`
 
-        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:meth:`paramiko.client.SSHClient.RejectPolicy`
+        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy`
         :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
         '''
         self.client.set_missing_host_key_policy(ssh_key_policy)
