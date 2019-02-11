@@ -34,7 +34,7 @@ class RedSSH(object):
     Instances the start of an SSH connection.
     Extra options are available at :func:`redssh.RedSSH.connect` time.
 
-    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.RejectPolicy`
+    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.SSHClient.RejectPolicy`
     :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
     :param prompt: The basic prmopt to expect for the first command line.
     :type prompt: `regex string`
@@ -74,7 +74,7 @@ class RedSSH(object):
         '''
         Just a shortcut for `paramiko.client.set_missing_host_key_policy`
 
-        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.RejectPolicy`
+        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:meth:`paramiko.client.SSHClient.RejectPolicy`
         :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
         '''
         self.client.set_missing_host_key_policy(ssh_key_policy)
@@ -112,7 +112,7 @@ class RedSSH(object):
 
         :param use_basic_prompt: Use the dumb prompt from first login to the remote terminal.
         :type use_basic_prompt: `bool`
-        :param set_prompt: Set to `True` to set the prompt via `redssh.RedSSH.PROMPT_SET_SH`
+        :param set_prompt: Set to `True` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`
         :type set_prompt: `bool`
         '''
         if use_basic_prompt==True:
@@ -131,7 +131,7 @@ class RedSSH(object):
         :type raw: `bool`
         :param prompt_change: Set to `True` when the command executed changes the prompt to expect for when the command finishes, so that the prompt value is automatically set for you.
         :type prompt_change: `bool`
-        :param reset_prompt: Set to `True` to allow when `prompt_change` is set to `True` to set the prompt via :attr:`redssh.RedSSH.PROMPT_SET_SH`.
+        :param reset_prompt: Set to `True` to allow when `prompt_change` is set to `True` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`.
         :type reset_prompt: `bool`
         '''
         self.sendline(cmd)
