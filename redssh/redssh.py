@@ -58,7 +58,7 @@ class RedSSH(object):
 
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
-        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" #: blah
+        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" ##:
         self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
 
     def __pexpect_and_paramiko_expect_bind__(self):
