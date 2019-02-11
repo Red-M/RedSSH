@@ -34,8 +34,8 @@ class RedSSH(object):
     Instances the start of an SSH connection.
     Extra options are available at :func:`redssh.RedSSH.connect` time.
 
-    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy`
-    :type ssh_key_policy: One of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.AutoAddPolicy`
+    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy` needs to be one of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.WarningPolicy` :py:class:`paramiko.client.AutoAddPolicy`
+    :type ssh_key_policy: `class`
     :param prompt: The basic prmopt to expect for the first command line.
     :type prompt: `regex string`
     :param unique_prompt: Should a unique prompt be attempted to be used for matching?
@@ -62,7 +62,7 @@ class RedSSH(object):
         '''
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
-        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" #:
+        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '"
         self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
         self.expect = self.screen.expect
         self.sendline = self.screen.send
@@ -74,8 +74,8 @@ class RedSSH(object):
         '''
         Just a shortcut for `paramiko.client.set_missing_host_key_policy`
 
-        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy`
-        :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
+        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy` needs to be one of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.WarningPolicy` :py:class:`paramiko.client.AutoAddPolicy`
+        :type ssh_key_policy: `class`
         '''
         self.client.set_missing_host_key_policy(ssh_key_policy)
 
