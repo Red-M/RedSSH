@@ -58,8 +58,7 @@ class RedSSH(object):
 
         self.PROMPT = self.prompt
         self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
-        #: blah
-        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '"
+        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" #: blah
         self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
 
     def __pexpect_and_paramiko_expect_bind__(self):
@@ -114,7 +113,7 @@ class RedSSH(object):
 
         :param use_basic_prompt: Use the dumb prompt from first login to the remote terminal.
         :type use_basic_prompt: `bool`
-        :param set_prompt: Set to `True` to set the prompt via :ivar:`redssh.RedSSH.PROMPT_SET_SH`
+        :param set_prompt: Set to `True` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`
         :type set_prompt: `bool`
         '''
         if use_basic_prompt==True:
@@ -133,7 +132,7 @@ class RedSSH(object):
         :type raw: `bool`
         :param prompt_change: Set to `True` when the command executed changes the prompt to expect for when the command finishes, so that the prompt value is automatically set for you.
         :type prompt_change: `bool`
-        :param reset_prompt: Set to `True` to allow when `prompt_change` is set to `True` to set the prompt via :ivar:`redssh.RedSSH.PROMPT_SET_SH`.
+        :param reset_prompt: Set to `True` to allow when `prompt_change` is set to `True` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`.
         :type reset_prompt: `bool`
         '''
         self.sendline(cmd)
