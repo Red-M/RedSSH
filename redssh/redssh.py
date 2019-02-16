@@ -34,21 +34,21 @@ class RedSSH(object):
     Instances the start of an SSH connection.
     Extra options are available at :func:`redssh.RedSSH.connect` time.
 
-    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy`. Needs to be one of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.WarningPolicy` :py:class:`paramiko.client.AutoAddPolicy`
-    :type ssh_key_policy: `class`
+    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.SSHClient.RejectPolicy`
+    :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
     :param prompt: The basic prmopt to expect for the first command line.
     :type prompt: `regex string`
-    :param unique_prompt: Should a unique prompt be attempted to be used for matching?
+    :param unique_prompt: Should a unique prompt be used for matching?
     :type unique_prompt: `bool`
     :param encoding: Set the encoding to something other than the default of `'utf8'` when your target SSH server doesn't return UTF-8.
     :type encoding: `str`
     '''
-    def __init__(self,ssh_key_policy=None,prompt=r'.+?[#$]\s+',unique_prompt=False,encoding='utf8',**kwargs):
+    def __init__(self,ssh_key_policy=None,prompt=r'.+?[\#\$]\s+',unique_prompt=False,encoding='utf8',**kwargs):
         self.debug = False
+        self.unique_prompt = unique_prompt
         self.encoding = encoding
         self.basic_prompt = prompt
         self.prompt = prompt
-        self.unique_prompt = unique_prompt
         self.client = paramiko.SSHClient()
         if ssh_key_policy==None:
             self.set_ssh_key_policy(paramiko.RejectPolicy())
@@ -56,15 +56,14 @@ class RedSSH(object):
             self.set_ssh_key_policy(ssh_key_policy)
         self.quit = self.exit
 
-        self.PROMPT = self.prompt
-        self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
-        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" ##:
-        self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
-
     def __pexpect_and_paramiko_expect_bind__(self):
         '''
         This is an internal binder to make use of the pexpect function names for paramiko_expect.
         '''
+        self.PROMPT = self.prompt
+        self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
+        self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" #:
+        self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
         self.expect = self.screen.expect
         self.sendline = self.screen.send
 
@@ -73,10 +72,10 @@ class RedSSH(object):
 
     def set_ssh_key_policy(self,ssh_key_policy):
         '''
-        Just a shortcut for :py:meth:`paramiko.client.SSHClient.set_missing_host_key_policy`
+        Just a shortcut for `paramiko.client.set_missing_host_key_policy`
 
-        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:class:`paramiko.client.RejectPolicy`. Needs to be one of these three: :py:class:`paramiko.client.RejectPolicy` :py:class:`paramiko.client.WarningPolicy` :py:class:`paramiko.client.AutoAddPolicy`
-        :type ssh_key_policy: `class`
+        :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:meth:`paramiko.client.SSHClient.RejectPolicy`
+        :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
         '''
         self.client.set_missing_host_key_policy(ssh_key_policy)
 
@@ -92,7 +91,7 @@ class RedSSH(object):
         self.past_login = True
         self.set_unique_prompt()
 
-    def device_init(**kwargs):
+    def device_init(self,**kwargs):
         '''
         Override this function to intialize a device that does not simply drop to the terminal or that will kick you out if you send any key other than an "accpetable" one.
         This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redssh.RedSSH.get_unique_prompt` to be overriden.
@@ -152,9 +151,9 @@ class RedSSH(object):
 
     def sudo(self,password,sudo=True,su_cmd='su -'):
         '''
-        Sudo up or SU up or whatever up into higher priviledges.
+        Sudo up or SU up or whatever up into higher privileges.
 
-        :param password: Password for gaining priviledges
+        :param password: Password for gaining privileges
         :type password: `str`
         :param sudo: Set to `False` to allow `su_cmd` to be executed instead.
         :type sudo: `bool`
@@ -165,7 +164,7 @@ class RedSSH(object):
         if sudo==False:
             cmd = su_cmd
         self.sendline(cmd)
-        self.expect('.+?asswor.+?\s+')
+        self.expect(r'.+?asswor.+?\s+')
         self.sendline(password)
         self.expect(self.basic_prompt)
         self.set_unique_prompt()
