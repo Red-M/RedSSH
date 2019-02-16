@@ -91,7 +91,10 @@ html_theme = 'classic'
 # documentation.
 #
 html_theme_options = {
-    'body_text_align':'left'
+    'stickysidebar':'True',
+    'externalrefs':'True',
+    'body_text_align':'left',
+    'relbarbgcolor': 'black'
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
