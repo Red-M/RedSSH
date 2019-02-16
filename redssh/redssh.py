@@ -250,4 +250,3 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login'):
             if self.past_login==True:
                 self.client.close()
-
