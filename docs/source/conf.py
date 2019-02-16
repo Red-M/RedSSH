@@ -20,7 +20,7 @@ import redssh
 
 # -- Project information -----------------------------------------------------
 
-project = u'redssh'
+project = u'RedSSH'
 copyright = u'2018, Red_M'
 author = u'Red_M'
 
@@ -140,7 +140,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'redssh.tex', u'redssh Documentation',
+    (master_doc, 'RedSSH.tex', u'RedSSH Documentation',
      u'Red\\_M', 'manual'),
 ]
 
@@ -150,7 +150,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'redssh', u'redssh Documentation',
+    (master_doc, 'RedSSH', u'RedSSH Documentation',
      [author], 1)
 ]
 
@@ -161,8 +161,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'redssh', u'redssh Documentation',
-     author, 'redssh', 'One line description of project.',
+    (master_doc, 'redssh', u'RedSSH Documentation',
+     author, 'RedSSH', 'SSH automation.',
      'Miscellaneous'),
 ]
 
