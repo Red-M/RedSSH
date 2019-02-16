@@ -14,30 +14,14 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-'''
-.. module:: redssh
-   :platform: Unix
-   :synopsis: Offers the RedSSH automation layer.
 
-.. moduleauthor:: Red_M <redssh_docs@red-m.net>
-
-
-'''
 
 import os
 import re
 import paramiko
 import paramiko_expect
 
-class RedSSHException(Exception):
-    pass
-
-class BadSudoPassword(RedSSHException):
-    '''
-    This will be raised when a password does not acquire root via sudo/su.
-    '''
-    def __init__(self):
-        RedSSHException.__init__(self,'Bad sudo password provided, could not gain root.')
+from redssh import exceptions
 
 class RedSSH(object):
     '''
@@ -183,7 +167,7 @@ class RedSSH(object):
         if result==0:
             self.set_unique_prompt()
         else:
-            raise BadSudoPassword()
+            raise exceptions.BadSudoPassword()
 
 
     def start_scp(self):
