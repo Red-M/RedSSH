@@ -87,7 +87,7 @@ class RedSSH(object):
 
     def device_init(self,**kwargs):
         '''
-        Override this function to intialize a device that does not simply drop to the terminal or a device will kick you out if you send any key/character other than an "accpetable" one.
+        Override this function to intialize a device that does not simply drop to the terminal or a device will kick you out if you send any key/character other than an "acceptable" one.
         This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redssh.RedSSH.get_unique_prompt` to be overriden.
         '''
         pass
@@ -119,7 +119,7 @@ class RedSSH(object):
         '''
         Run a command in the remote terminal.
 
-        :param cmd: Command to execute, I'd treat this like I am typing into bash myself.
+        :param cmd: Command to execute, this will send characters exactly as if they were typed. (crtl+c could be sent via this).
         :type cmd: ``str``
         :param raw: Set to ``True`` to remove the "smart" cleaning, useful for debugging or for when you want the prompt as well.
         :type raw: ``bool``
