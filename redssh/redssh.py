@@ -169,6 +169,8 @@ class RedSSH(object):
         :type sudo: `bool`
         :param su_cmd: Command to be executed when `sudo` is `False`, allows overriding of the `'sudo'` default.
         :type su_cmd: `str`
+        :return: `None`
+        :raises: `redssh.BadSudoPassword`
         '''
         cmd = 'sudo'
         reg = r'.+?asswor.+?\:\s+'
