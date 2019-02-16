@@ -44,14 +44,14 @@ class RedSSH(object):
     Instances the start of an SSH connection.
     Extra options are available at :func:`redssh.RedSSH.connect` time.
 
-    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to `paramiko.client.SSHClient.RejectPolicy`
-    :type ssh_key_policy: `paramiko.client.SSHKeyPolicy`
+    :param ssh_key_policy: `paramiko`'s policy for handling server SSH keys. Defaults to :py:meth:`paramiko.client.SSHClient.RejectPolicy`
+    :type ssh_key_policy: ``paramiko.client.SSHKeyPolicy``
     :param prompt: The basic prmopt to expect for the first command line.
-    :type prompt: `regex string`
+    :type prompt: ``regex string``
     :param unique_prompt: Should a unique prompt be used for matching?
-    :type unique_prompt: `bool`
-    :param encoding: Set the encoding to something other than the default of `'utf8'` when your target SSH server doesn't return UTF-8.
-    :type encoding: `str`
+    :type unique_prompt: ``bool``
+    :param encoding: Set the encoding to something other than the default of ``'utf8'`` when your target SSH server doesn't return UTF-8.
+    :type encoding: ``str``
     '''
     def __init__(self,ssh_key_policy=None,prompt=r'.+?[\#\$]\s+',unique_prompt=False,encoding='utf8',**kwargs):
         self.debug = False
@@ -103,7 +103,7 @@ class RedSSH(object):
 
     def device_init(self,**kwargs):
         '''
-        Override this function to intialize a device that does not simply drop to the terminal or that will kick you out if you send any key other than an "accpetable" one.
+        Override this function to intialize a device that does not simply drop to the terminal or a device will kick you out if you send any key/character other than an "accpetable" one.
         This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redssh.RedSSH.get_unique_prompt` to be overriden.
         '''
         pass
@@ -112,7 +112,7 @@ class RedSSH(object):
         '''
         Return a unique prompt from the existing SSH session. Override this function to generate the compiled regex however you'd like, eg, from a database or from a hostname.
 
-        :returns: compiled `rstring`
+        :returns: compiled ``rstring``
         '''
         return(re.escape(self.command('',raw=True)[1:])) # A smart-ish way to get the current prompt after a dumb prompt match
 
@@ -121,9 +121,9 @@ class RedSSH(object):
         Set a unique prompt in the existing SSH session.
 
         :param use_basic_prompt: Use the dumb prompt from first login to the remote terminal.
-        :type use_basic_prompt: `bool`
-        :param set_prompt: Set to `True` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`
-        :type set_prompt: `bool`
+        :type use_basic_prompt: ``bool``
+        :param set_prompt: Set to ``True`` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`
+        :type set_prompt: ``bool``
         '''
         if use_basic_prompt==True:
             self.prompt = self.basic_prompt
@@ -136,13 +136,13 @@ class RedSSH(object):
         Run a command in the remote terminal.
 
         :param cmd: Command to execute, I'd treat this like I am typing into bash myself.
-        :type cmd: `str`
-        :param raw: Set to `True` to remove the "smart" cleaning, useful for debugging or for when you want the prompt as well.
-        :type raw: `bool`
-        :param prompt_change: Set to `True` when the command executed changes the prompt to expect for when the command finishes, so that the prompt value is automatically set for you.
-        :type prompt_change: `bool`
-        :param reset_prompt: Set to `True` to allow when `prompt_change` is set to `True` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`.
-        :type reset_prompt: `bool`
+        :type cmd: ``str``
+        :param raw: Set to ``True`` to remove the "smart" cleaning, useful for debugging or for when you want the prompt as well.
+        :type raw: ``bool``
+        :param prompt_change: Set to ``True`` when the command executed changes the prompt to expect for when the command finishes, so that the prompt value is automatically set for you.
+        :type prompt_change: ``bool``
+        :param reset_prompt: Set to ``True`` to allow when ``prompt_change`` is set to ``True`` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`.
+        :type reset_prompt: ``bool``
         '''
         self.sendline(cmd)
 
@@ -164,12 +164,12 @@ class RedSSH(object):
         Sudo up or SU up or whatever up into higher privileges.
 
         :param password: Password for gaining privileges
-        :type password: `str`
-        :param sudo: Set to `False` to allow `su_cmd` to be executed instead.
-        :type sudo: `bool`
-        :param su_cmd: Command to be executed when `sudo` is `False`, allows overriding of the `'sudo'` default.
-        :type su_cmd: `str`
-        :return: `None`
+        :type password: ``str``
+        :param sudo: Set to ``False`` to allow ``su_cmd`` to be executed instead.
+        :type sudo: ``bool``
+        :param su_cmd: Command to be executed when ``sudo`` is ``False``, allows overriding of the ``'sudo'`` default.
+        :type su_cmd: ``str``
+        :return: ``None``
         :raises: `redssh.BadSudoPassword`
         '''
         cmd = 'sudo'
@@ -203,11 +203,11 @@ class RedSSH(object):
         Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: The local path, on the machine where your code is running from, to upload from.
-        :type local_path: `str`
-        :param remote_path: The remote path to upload the `local_path` to.
-        :type remote_path: `str`
-        :param recursive: Enable recursion down multiple directories from the top level of `local_path`.
-        :type recursive: `bool`
+        :type local_path: ``str``
+        :param remote_path: The remote path to upload the ``local_path`` to.
+        :type remote_path: ``str``
+        :param recursive: Enable recursion down multiple directories from the top level of ``local_path``.
+        :type recursive: ``bool``
         '''
         if self.__check_for_attr__('sftp_client'):
             for dirpath, dirnames, filenames in os.walk(local_path):
@@ -226,7 +226,7 @@ class RedSSH(object):
 
     def put_file(self,local_path,remote_path):
         '''
-        Upload file via SFTP to the remote session. Similar to `cp /files/file /target`.
+        Upload file via SFTP to the remote session. Similar to ``cp /files/file /target``.
         Also retains file permissions.
 
         .. warning::
@@ -234,9 +234,9 @@ class RedSSH(object):
         Do note that this will only upload with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: The local path, on the machine where your code is running from, to upload from.
-        :type local_path: `str`
-        :param remote_path: The remote path to upload the `local_path` to.
-        :type remote_path: `str`
+        :type local_path: ``str``
+        :param remote_path: The remote path to upload the ``local_path`` to.
+        :type remote_path: ``str``
         '''
         if self.__check_for_attr__('sftp_client'):
             self.sftp_client.put(local_path,remote_path)
