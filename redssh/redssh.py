@@ -29,6 +29,16 @@ import re
 import paramiko
 import paramiko_expect
 
+class RedSSHException(Exception):
+    pass
+
+class BadSudoPassword(RedSSHException):
+    '''
+    This will be raised when a password does not acquire root via sudo/su.
+    '''
+    def __init__(self):
+        RedSSHException.__init__(self,'Bad sudo password provided, could not gain root.')
+
 class RedSSH(object):
     '''
     Instances the start of an SSH connection.
@@ -161,13 +171,17 @@ class RedSSH(object):
         :type su_cmd: `str`
         '''
         cmd = 'sudo'
+        reg = r'.+?asswor.+?\:\s+'
         if sudo==False:
             cmd = su_cmd
         self.sendline(cmd)
-        self.expect(r'.+?asswor.+?\s+')
+        self.expect(reg)
         self.sendline(password)
-        self.expect(self.basic_prompt)
-        self.set_unique_prompt()
+        result = self.expect(re_strings=[self.basic_prompt,reg,r'Sorry.+?\.',r'.+?Authentication failure'])
+        if result==0:
+            self.set_unique_prompt()
+        else:
+            raise BadSudoPassword()
 
 
     def start_scp(self):
