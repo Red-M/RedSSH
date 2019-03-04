@@ -101,6 +101,7 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
+        :return: ``tuple`` of ``(tun_thread,thread_queue,tun_server)`` this is so you can control the tunnel's thread if you need to.
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['local']:
@@ -117,7 +118,7 @@ class RedSSH(object):
             tun_thread.name = option_string
             tun_thread.start()
             self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
-            return(self.tunnels['local'][option_string])
+        return(self.tunnels['local'][option_string])
 
     def reverse_tunnel(self,local_port,remote_host,remote_port):
         '''
@@ -129,6 +130,7 @@ class RedSSH(object):
         :type remote_host: ``str``
         :param remote_port: The remote host's port to connect to via the local machine.
         :type remote_port: ``int``
+        :return: ``tuple`` of ``(tun_thread,thread_queue,None)`` this is so you can control the tunnel's thread if you need to.
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
@@ -152,7 +154,7 @@ class RedSSH(object):
             tun_thread.name = option_string
             tun_thread.start()
             self.tunnels['remote'][option_string] = (tun_thread,thread_queue,None)
-            return(self.tunnels['remote'][option_string])
+        return(self.tunnels['remote'][option_string])
 
     def device_init(self,**kwargs):
         '''
