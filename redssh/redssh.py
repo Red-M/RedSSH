@@ -126,8 +126,11 @@ class RedSSH(object):
                         thr = threading.Thread(target=tunneling.reverse_handler, args=(chan, remote_host, remote_port))
                         thr.setDaemon(True)
                         thr.start()
-                    if not queue.get()==None:
-                        break
+                    try:
+                        if not queue.get(False)==None:
+                            break
+                    except Exception as e:
+                        pass
             tun_thread = threading.Thread(target=port_main, args=(transport, remote_host, remote_port, thread_queue))
             tun_thread.daemon = True
             tun_thread.name = option_string
