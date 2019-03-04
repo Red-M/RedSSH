@@ -19,6 +19,7 @@
 import os
 import re
 import threading
+import multiprocessing
 import paramiko
 import paramiko_expect
 
@@ -45,6 +46,7 @@ class RedSSH(object):
         self.encoding = encoding
         self.basic_prompt = prompt
         self.prompt = prompt
+        self.tunnels = {'local':{},'remote':{}}
         self.client = paramiko.SSHClient()
         if ssh_key_policy==None:
             self.set_ssh_key_policy(paramiko.RejectPolicy())
@@ -87,39 +89,51 @@ class RedSSH(object):
         self.past_login = True
         self.set_unique_prompt()
 
-    def forward_tunnel(self,local_port,remote_host,remote_port):
+    def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
         '''
         Forwards a port the same way the ``-L`` option does for the OpenSSH client.
         '''
-        transport = self.client.get_transport()
-        class SubHander(tunneling.ForwardHandler):
-            chain_host = remote_host
-            chain_port = remote_port
-            ssh_transport = transport
-        tun_server = tunneling.ForwardServer(('',local_port),SubHander)
-        tun_thread = threading.Thread(target=tun_server.serve_forever)
-        tun_thread.daemon = True
-        tun_thread.start()
-        return(tun_thread)
+        option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
+        if not option_string in self.tunnels['local']:
+            transport = self.client.get_transport()
+            thread_queue = multiprocessing.Queue()
+            class SubHander(tunneling.ForwardHandler):
+                chain_host = remote_host
+                chain_port = remote_port
+                ssh_transport = transport
+                queue = thread_queue
+            tun_server = tunneling.ForwardServer((bind_addr,local_port),SubHander)
+            tun_thread = threading.Thread(target=tun_server.serve_forever)
+            tun_thread.daemon = True
+            tun_thread.name = option_string
+            tun_thread.start()
+            self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
+            return(self.tunnels['local'][option_string])
 
     def reverse_tunnel(self,local_port,remote_host,remote_port):
         '''
         Forwards a port the same way the ``-R`` option does for the OpenSSH client.
         '''
-        transport = self.client.get_transport()
-        transport.request_port_forward('', local_port)
-        def port_main(transport,remote_host,remote_port):
-            while True:
-                chan = transport.accept()
-                if chan is None:
-                    continue
-                thr = threading.Thread(target=tunneling.reverse_handler, args=(chan, remote_host, remote_port))
-                thr.setDaemon(True)
-                thr.start()
-        tun_thread = threading.Thread(target=port_main, args=(transport, remote_host, remote_port))
-        tun_thread.setDaemon(True)
-        tun_thread.start()
-        return(tun_thread)
+        option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
+        if not option_string in self.tunnels['remote']:
+            transport = self.client.get_transport()
+            transport.request_port_forward('', local_port)
+            thread_queue = multiprocessing.Queue()
+            def port_main(transport,remote_host,remote_port,queue):
+                while True:
+                    chan = transport.accept(1)
+                    if not chan==None:
+                        thr = threading.Thread(target=tunneling.reverse_handler, args=(chan, remote_host, remote_port))
+                        thr.setDaemon(True)
+                        thr.start()
+                    if not queue.get()==None:
+                        break
+            tun_thread = threading.Thread(target=port_main, args=(transport, remote_host, remote_port, thread_queue))
+            tun_thread.daemon = True
+            tun_thread.name = option_string
+            tun_thread.start()
+            self.tunnels['remote'][option_string] = (tun_thread,thread_queue,None)
+            return(self.tunnels['remote'][option_string])
 
     def device_init(self,**kwargs):
         '''
@@ -268,5 +282,16 @@ class RedSSH(object):
         After this you might as well just free memory from the class instance.
         '''
         if self.__check_for_attr__('past_login'):
+            for thread_type in self.tunnels:
+                for option_string in self.tunnels[thread_type]:
+                    try:
+                        (thread,queue,server) = self.tunnels[thread_type][option_string]
+                        queue.put('terminate')
+                        if not server==None:
+                            server.shutdown()
+                        if thread.is_alive():
+                            thread.join()
+                    except Exception as e:
+                        pass
             if self.past_login==True:
                 self.client.close()

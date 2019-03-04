@@ -18,7 +18,7 @@
 
 
 
-# forward.py
+# forward.py from paramiko
 # Copyright (C) 2003-2007  Robey Pointer <robeypointer@gmail.com>
 #
 # This file is part of paramiko.
@@ -37,7 +37,7 @@
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
 
-# rforward.py
+# rforward.py from paramiko
 # Copyright (C) 2008  Robey Pointer <robeypointer@gmail.com>
 #
 # This file is part of paramiko.
@@ -71,14 +71,28 @@ class ForwardServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 class ForwardHandler(SocketServer.BaseRequestHandler):
     def handle(self):
+        itc = None
         try:
-            chan = self.ssh_transport.open_channel('direct-tcpip',(self.chain_host, self.chain_port),self.request.getpeername(),)
+            itc = self.queue.get(False)
         except Exception as e:
-            return
-        if chan is None:
-            return
+            pass
+        if not itc==None:
+            return()
+        try:
+            peer = self.request.getpeername()
+            chan = self.ssh_transport.open_channel("direct-tcpip",(self.chain_host, self.chain_port),peer,)
+        except Exception as e:
+            return()
+        if chan==None:
+            return()
 
         while True:
+            try:
+                itc = self.queue.get(False)
+            except Exception as e:
+                pass
+            if not itc==None:
+                break
             r, w, x = select.select([self.request, chan], [], [])
             if self.request in r:
                 data = self.request.recv(1024)
@@ -91,12 +105,8 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                     break
                 self.request.send(data)
 
-        peername = self.request.getpeername()
         chan.close()
         self.request.close()
-
-
-
 
 
 def reverse_handler(chan, host, port):
