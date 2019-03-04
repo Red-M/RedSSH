@@ -127,7 +127,7 @@ class RedSSH(object):
                         thr.setDaemon(True)
                         thr.start()
                     try:
-                        if not queue.get(False)==None:
+                        if queue.get(False)=='terminate':
                             break
                     except Exception as e:
                         pass

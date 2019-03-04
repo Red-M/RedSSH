@@ -76,7 +76,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
             itc = self.queue.get(False)
         except Exception as e:
             pass
-        if not itc==None:
+        if itc=='terminate':
             return()
         try:
             peer = self.request.getpeername()
@@ -91,7 +91,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                 itc = self.queue.get(False)
             except Exception as e:
                 pass
-            if not itc==None:
+            if itc=='terminate':
                 break
             r, w, x = select.select([self.request, chan], [], [])
             if self.request in r:
