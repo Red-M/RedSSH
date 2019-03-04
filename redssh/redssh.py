@@ -92,6 +92,15 @@ class RedSSH(object):
     def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
         '''
         Forwards a port the same way the ``-L`` option does for the OpenSSH client.
+
+        :param local_port: The local port on the local machine to connect to.
+        :type local_port: ``int``
+        :param remote_host: The remote host to connect to via the remote machine.
+        :type remote_host: ``str``
+        :param remote_port: The remote host's port to connect to via the remote machine.
+        :type remote_port: ``int``
+        :param bind_addr: The bind address on this machine to bind to for the local port.
+        :type bind_addr: ``str``
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['local']:
@@ -113,6 +122,13 @@ class RedSSH(object):
     def reverse_tunnel(self,local_port,remote_host,remote_port):
         '''
         Forwards a port the same way the ``-R`` option does for the OpenSSH client.
+
+        :param local_port: The local port on the remote side to connect to.
+        :type local_port: ``int``
+        :param remote_host: The remote host to connect to via the local machine.
+        :type remote_host: ``str``
+        :param remote_port: The remote host's port to connect to via the local machine.
+        :type remote_port: ``int``
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
