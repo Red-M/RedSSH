@@ -18,10 +18,12 @@
 
 import os
 import re
+import threading
 import paramiko
 import paramiko_expect
 
 from redssh import exceptions
+from redssh import tunneling
 
 class RedSSH(object):
     '''
@@ -84,6 +86,40 @@ class RedSSH(object):
         self.screen.expect(self.prompt)
         self.past_login = True
         self.set_unique_prompt()
+
+    def forward_tunnel(self,local_port,remote_host,remote_port):
+        '''
+        Forwards a port the same way the ``-L`` option does for the OpenSSH client.
+        '''
+        transport = self.client.get_transport()
+        class SubHander(tunneling.ForwardHandler):
+            chain_host = remote_host
+            chain_port = remote_port
+            ssh_transport = transport
+        tun_server = tunneling.ForwardServer(('',local_port),SubHander)
+        tun_thread = threading.Thread(target=tun_server.serve_forever)
+        tun_thread.daemon = True
+        tun_thread.start()
+        return(tun_thread)
+
+    def reverse_tunnel(self,local_port,remote_host,remote_port):
+        '''
+        Forwards a port the same way the ``-R`` option does for the OpenSSH client.
+        '''
+        transport = self.client.get_transport()
+        transport.request_port_forward('', local_port)
+        def port_main(transport,remote_host,remote_port):
+            while True:
+                chan = transport.accept()
+                if chan is None:
+                    continue
+                thr = threading.Thread(target=tunneling.reverse_handler, args=(chan, remote_host, remote_port))
+                thr.setDaemon(True)
+                thr.start()
+        tun_thread = threading.Thread(target=port_main, args=(transport, remote_host, remote_port))
+        tun_thread.setDaemon(True)
+        tun_thread.start()
+        return(tun_thread)
 
     def device_init(self,**kwargs):
         '''
