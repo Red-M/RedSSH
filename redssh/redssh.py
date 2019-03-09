@@ -297,22 +297,28 @@ class RedSSH(object):
             self.sftp_client.put(local_path,remote_path)
             self.sftp_client.chmod(remote_path,os.stat(local_path).st_mode)
 
+    def close_tunnels(self):
+        '''
+        Closes all tunnels if any are open.
+        '''
+        for thread_type in self.tunnels:
+            for option_string in self.tunnels[thread_type]:
+                try:
+                    (thread,queue,server) = self.tunnels[thread_type][option_string]
+                    queue.put('terminate')
+                    if not server==None:
+                        server.shutdown()
+                    if thread.is_alive():
+                        thread.join()
+                except Exception as e:
+                    pass
+
     def exit(self):
         '''
         Kill the current session if actually connected.
         After this you might as well just free memory from the class instance.
         '''
         if self.__check_for_attr__('past_login'):
-            for thread_type in self.tunnels:
-                for option_string in self.tunnels[thread_type]:
-                    try:
-                        (thread,queue,server) = self.tunnels[thread_type][option_string]
-                        queue.put('terminate')
-                        if not server==None:
-                            server.shutdown()
-                        if thread.is_alive():
-                            thread.join()
-                    except Exception as e:
-                        pass
+            self.close_tunnels()
             if self.past_login==True:
                 self.client.close()
