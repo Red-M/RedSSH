@@ -59,7 +59,7 @@ class RedSSH(object):
         This is an internal binder to make use of the pexpect function names for paramiko_expect.
         '''
         self.PROMPT = self.prompt
-        self.UNIQUE_PROMPT = r"\[PEXPECT\][\$\#] "
+        self.UNIQUE_PROMPT = r'\[PEXPECT\][\$\#] '
         self.PROMPT_SET_SH = r" PS1='[PEXPECT]\$ '" #:
         self.PROMPT_SET_CSH = r" set prompt='[PEXPECT]\$ '"
         self.expect = self.screen.expect
@@ -225,7 +225,7 @@ class RedSSH(object):
         :param su_cmd: Command to be executed when ``sudo`` is ``False``, allows overriding of the ``'sudo'`` default.
         :type su_cmd: ``str``
         :return: ``None``
-        :raises: `redssh.BadSudoPassword`
+        :raises: `redssh.exceptions.BadSudoPassword` if the password provided does not allow for privilege escalation.
         '''
         cmd = 'sudo'
         reg = r'.+?asswor.+?\:\s+'
