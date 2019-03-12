@@ -16,6 +16,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 class RedSSHException(Exception):
+    '''
+    Base error class for sub classing.
+    '''
     pass
 
 class BadSudoPassword(RedSSHException):

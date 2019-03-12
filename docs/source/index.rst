@@ -9,8 +9,9 @@ Welcome to RedSSH's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-   
+
    redssh
+   exceptions
 
 
 

@@ -15,14 +15,14 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import setuptools
+from . import redssh
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 
 deps = [
-    'paramiko_expect',
-    'paramiko'
+    'ssh2-python'
 ]
 
 doc_deps = [
@@ -33,7 +33,7 @@ doc_deps = [
 
 setuptools.setup(
     name='redssh',
-    version='1.0.1',
+    version=redssh.VERSION,
     url='https://bitbucket.org/Red_M/RedSSH',
     license='GPLv2',
     author='Red_M',
