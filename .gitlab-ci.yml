@@ -8,9 +8,10 @@ pages:
     - pip install sphinx
     - pip install -e ./[docs]
     - cd ./docs
-    - make html
+    - mkdir builds
     - mkdir ../public
-    - cp -r ./build/html ../public
+    - ln -s ./build/html ../public
+    - make html
     artifacts:
         paths:
         - public
