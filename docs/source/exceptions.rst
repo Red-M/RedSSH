@@ -1,7 +1,7 @@
-RedSSH exceptions
+RedSSH
 *********************
 
-.. automodule:: redssh.exceptions
+.. autoclass:: redssh.exceptions
     :members:
     :inherited-members:
     :show-inheritance:
