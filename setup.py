@@ -28,6 +28,7 @@ deps = [
 ]
 
 doc_deps = [
+    'paramiko',
     'sphinx',
     'sphinx_rtd_theme'
 ]
@@ -47,7 +48,7 @@ setuptools.setup(
     platforms='Posix',
     install_requires=deps,
     extras_require={
-        'tests':deps,
+        'tests':deps+doc_deps,
         'docs':deps+doc_deps
     },
     classifiers=[
