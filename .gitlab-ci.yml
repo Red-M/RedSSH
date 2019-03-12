@@ -5,7 +5,6 @@ pages:
     - apt install \-y make curl wget python3
     - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
     - python3 ./get-pip.py
-    - pip install sphinx
     - pip install -e ./[docs]
     - cd ./docs
     - mkdir builds
