@@ -21,7 +21,10 @@ import re
 import threading
 import multiprocessing
 import socket
+import select
 from ssh2.session import Session as ssh2_session
+from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND, LIBSSH2_SESSION_BLOCK_OUTBOUND
+from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
 from ssh2.sftp import LIBSSH2_FXF_TRUNC, LIBSSH2_FXF_WRITE, LIBSSH2_FXF_CREAT
 
 
@@ -32,7 +35,7 @@ from redssh import tunneling
 class RedSSH(object):
     '''
     Instances the start of an SSH connection.
-    Extra options are available at :func:`redssh.RedSSH.connect` time.
+    Extra options are available after :func:`redssh.RedSSH.connect` is called.
 
     :param prompt: The basic prompt to expect for the first command line.
     :type prompt: ``regex string``
@@ -61,11 +64,64 @@ class RedSSH(object):
     def __check_for_attr__(self,attr):
         return(attr in self.__dict__)
 
+    def _block_select(self, timeout=None):
+        block_direction = self.session.block_directions()
+        if block_direction==0:
+            return()
+        rfds = []
+        wfds = []
+        if block_direction & LIBSSH2_SESSION_BLOCK_INBOUND:
+            rfds = [self.sock]
+        if block_direction & LIBSSH2_SESSION_BLOCK_OUTBOUND:
+            wfds = [self.sock]
+        select.select(rfds,wfds,[],timeout)
+
+    def _block(self, func, *args, **kwargs):
+        out = func(*args, **kwargs)
+        while out==LIBSSH2_ERROR_EAGAIN:
+            self._block_select()
+            out = func(*args, **kwargs)
+        return(out)
+
+    def _block_write(self, func, data, timeout=None):
+        data_len = len(data)
+        total_written = 0
+        while total_written<data_len:
+            (rc, bytes_written) = func(data[total_written:])
+            total_written+=bytes_written
+            if rc==LIBSSH2_ERROR_EAGAIN:
+                self._block_select(timeout)
+
+    def _read_iter(self, func, timeout=None):
+        pos = 0
+        remainder_len = 0
+        remainder = b''
+        (size, data) = func()
+        while size==LIBSSH2_ERROR_EAGAIN or size>0:
+            if size==LIBSSH2_ERROR_EAGAIN:
+                self._block_select(timeout)
+                (size, data) = func()
+            if timeout is not None and size==LIBSSH2_ERROR_EAGAIN:
+                raise(StopIteration)
+            while size>0:
+                while pos<size:
+                    if remainder_len>0:
+                        yield(remainder+data[pos:size])
+                        remainder = b''
+                        remainder_len = 0
+                    else:
+                        yield(data[pos:size])
+                    pos = size
+                (size, data) = func()
+                pos = 0
+        if remainder_len > 0:
+            yield(remainder)
+
     def connect(self,hostname, port=22, username=None, password=None, pkey=None, key_filename=None, timeout=None,
-        allow_agent=True, look_for_keys=True, compress=False, sock=None, gss_auth=False, gss_kex=False, gss_deleg_creds=True,
-        gss_host=None, banner_timeout=None, auth_timeout=None, gss_trust_dns=True, passphrase=None):
+        allow_agent=True, look_for_keys=True, passphrase=None):
         '''
-        Most of these options will work soon but for now only SSH keys via an SSH agent will work.
+        .. warning::
+            Some authentication methods are not yet supported!
 
         :param hostname: Hostname to connect to.
         :type hostname: ``str``
@@ -73,30 +129,61 @@ class RedSSH(object):
         :type port: ``int``
         :param username: Username to connect as to the remote server.
         :type username: ``str``
+        :param password: Password to offer to the remote server for authentication.
+        :type password: ``str``
+        :param allow_agent: Allow the local SSH key agent to offer the keys held in it for authentication.
+        :type allow_agent: ``bool``
+        :param pkey: Private key to offer to the remote server for authentication. NOT IMPLEMENTED!
+        :type pkey: ``str``
+        :param key_filename: Array of filenames to offer to the remote server. NOT IMPLEMENTED!
+        :type key_filename: ``array``
+        :param passphrase: Passphrase to decrypt any keys offered to the remote server. NOT IMPLEMENTED!
+        :type passphrase: ``str``
+        :param look_for_keys: Enable offering keys in ``~/.ssh`` automatically. NOT IMPLEMENTED!
+        :type look_for_keys: ``bool``
+        :param timeout: Timeout for the socket connection to the remote server.
+        :type timeout: ``float``
         '''
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((hostname, port))
-        self.session = ssh2_session()
-        self.session.handshake(self.sock)
-        self.session.agent_auth(username)
-        if allow_agent==True:
-            agent = self.session.agent_init()
-            agent.connect()
-            identities = agent.get_identities()
-            del agent
-        self.channel = self.session.open_session()
-        self.channel.pty(self.terminal)
-        self.channel.shell()
-        self.past_login = True
-        self.device_init()
-        self.expect(self.prompt_regex)
-        self.set_unique_prompt()
+        if self.__check_for_attr__('past_login')==False:
+            self.sock = socket.create_connection((hostname, port), timeout)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self.session = ssh2_session()
+            self.session.handshake(self.sock)
+
+            auth_requests = self.session.userauth_list(username)
+            for auth_request in auth_requests:
+                if allow_agent==True and auth_request=='publickey':
+                    if allow_agent==True:
+                        self.session.agent_auth(username)
+                        agent = self.session.agent_init()
+                        agent.connect()
+                    elif not pkey==None:
+                        pass
+                    elif key_filename!=None:
+                        pass
+                    # self.session.userauth_publickey(username,pkey)
+                    # self.session.userauth_hostbased_fromfile(username,pkey,hostname,passphrase=passphrase)
+                    # self.session.userauth_publickey_fromfile(username,pkey,passphrase)
+                    # self.session.userauth_publickey_frommemory(username,pkey,passphrase)
+                if not password==None and (auth_request=='password' or auth_request=='keyboard-interactive'):
+                    self.session.userauth_password(username,password)
+                if self.session.userauth_authenticated()==True:
+                    break
+
+            self.session.set_blocking(False)
+            self.channel = self._block(self.session.open_session)
+            self._block(self.channel.pty,self.terminal)
+            self._block(self.channel.shell)
+            self.past_login = True
+            self.device_init()
+            self.expect(self.prompt_regex)
+            self.set_unique_prompt()
 
     def prompt(self):
         '''
         Get a command line prompt in the terminal.
         Useful for using :func:`redssh.RedSSH.sendline` to send commands
-        then using this for when you want to get back to a prompt.
+        then using this for when you want to get back to a prompt to enter further commands.
         '''
         self.expect(self.prompt_regex)
 
@@ -107,7 +194,7 @@ class RedSSH(object):
         :param string: String to send to the remote session.
         :type string: ``str``
         '''
-        self.channel.write(string)
+        self._block_write(self.channel.write,string)
 
     def sendline(self,send_string,newline=None):
         '''
@@ -119,9 +206,7 @@ class RedSSH(object):
         :type newline: ``str``
         '''
         self.current_send_string = send_string
-        if not newline==None:
-            newline = newline
-        else:
+        if newline==None:
             newline = self.newline
         self.sendline_raw(send_string+newline)
 
@@ -140,7 +225,7 @@ class RedSSH(object):
         easygoing regex such as ``'.*server.*'`` if you wish to have a fuzzy
         match.
 
-        This has been originally taken from paramiko_expect and modified to work with ssh2-python plus my own additions and redactions.
+        This has been originally taken from paramiko_expect and modified to work with RedSSH.
         I've also made the style consistent with the rest of the library.
 
         :param re_strings: Either a regex string or list of regex strings
@@ -162,13 +247,12 @@ class RedSSH(object):
             re_strings = [re_strings]
 
         while (len(re_strings)==0 or not [re_string for re_string in re_strings if re.match(default_match_prefix+re_string+'$',self.current_output,re.DOTALL)]):
-            (err_code,current_buffer) = self.channel.read()
+            for current_buffer in self._read_iter(self.channel.read,0.01):
+                # print(current_buffer)
+                # print(current_buffer==None)
 
-            if len(current_buffer)==0:
-                break
-
-            current_buffer_decoded = self.remote_text_clean(current_buffer.decode(self.encoding),strip_ansi=True)
-            self.current_output += current_buffer_decoded
+                current_buffer_decoded = self.remote_text_clean(current_buffer.decode(self.encoding),strip_ansi=True)
+                self.current_output += current_buffer_decoded
 
         if len(re_strings)!=0:
             found_pattern = [(re_index, re_string) for (re_index,re_string) in enumerate(re_strings) if re.match(default_match_prefix+re_string+'$',self.current_output,re.DOTALL)]
@@ -262,11 +346,11 @@ class RedSSH(object):
         self.sendline(cmd)
         self.expect(reg)
         self.sendline(password)
-        result = self.expect(re_strings=[self.basic_prompt,reg,r'Sorry.+?\.',r'.+?Authentication failure'])
+        result = self.expect(re_strings=[self.basic_prompt,reg,r'Sorry.+?\.',r'.+?Authentication failure']) # Might be an idea to allow extra failure strings here to be more platform agnostic
         if result==0:
             self.set_unique_prompt()
         else:
-            raise exceptions.BadSudoPassword()
+            raise(exceptions.BadSudoPassword())
 
 
     def start_scp(self):
@@ -274,7 +358,7 @@ class RedSSH(object):
         Start the SFTP client.
         '''
         if not self.__check_for_attr__('sftp_client'):
-            self.sftp_client = self.session.sftp_init()
+            self.sftp_client = self._block(self.session.sftp_init)
 
     def put_folder(self,local_path,remote_path,recursive=False):
         '''
@@ -296,9 +380,9 @@ class RedSSH(object):
                 for dirname in dirnames:
                     local_dir_path = os.path.join(local_path, dirname)
                     remote_dir_path = os.path.join(remote_path, dirname)
-                    if not dirname in self.sftp_client.opendir(remote_path).readdir():
+                    if not dirname in self._block(self.sftp_client.opendir,remote_path).readdir():
                         try:
-                            self.sftp_client.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
+                            self._block(self.sftp_client.mkdir,remote_dir_path,os.stat(local_dir_path).st_mode)
                         except Exception as e:
                             pass
                     if recursive==True:
@@ -325,13 +409,15 @@ class RedSSH(object):
         :type remote_path: ``str``
         '''
         if self.__check_for_attr__('sftp_client'):
-            self.sftp_client.open(remote_path,LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode).write(open(local_path,'rb').read())
+            f = self._block(self.sftp_client.open,remote_path,LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
+            self._block_write(f.write,open(local_path,'rb').read())
+            self._block(f.close)
 
 
-    def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
+    def forward_tunnel(self,local_port, remote_host, remote_port, bind_addr='', socket_timeout=5):
         '''
         .. warning::
-            This is broken in this commit. Will be fixed once https://github.com/ParallelSSH/parallel-ssh/issues/140 has some sort of resolution.
+            This works but may have some broken bits
 
 
         Forwards a port the same way the ``-L`` option does for the OpenSSH client.
@@ -344,23 +430,22 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
+        :param socket_timeout: The amount of time to hold a forwarded socket open for with no traffic.
+        :type socket_timeout: ``int`` or ``float``
         :return: ``tuple`` of ``(tun_thread,thread_queue,tun_server)`` this is so you can control the tunnel's thread if you need to.
         '''
-        return()
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['local']:
-            ssh_transport = self.session
             thread_queue = multiprocessing.Queue()
 
             class SubHander(tunneling.ForwardHandler):
+                caller = self
                 chain_host = remote_host
                 chain_port = remote_port
-                session = ssh_transport
                 queue = thread_queue
                 src_tup = (bind_addr,local_port)
                 dst_tup = (remote_host,remote_port)
-                channel_retries = 5
-                num_retries = 3
+                sock_timeout = socket_timeout
 
             tun_server = tunneling.ForwardServer((bind_addr,local_port),SubHander)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
@@ -370,10 +455,10 @@ class RedSSH(object):
             self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
         return(self.tunnels['local'][option_string])
 
-    def reverse_tunnel(self,local_port,remote_host,remote_port):
+    def reverse_tunnel(self, local_port, remote_host, remote_port):
         '''
         .. warning::
-            This is broken in this commit. Will be fixed later.
+            This is broken in this commit. Will be fixed later. It currently does nothing.
 
 
         Forwards a port the same way the ``-R`` option does for the OpenSSH client.
@@ -414,7 +499,7 @@ class RedSSH(object):
 
     def close_tunnels(self):
         '''
-        Closes all tunnels if any are open.
+        Closes all SSH tunnels if any are open.
         '''
         for thread_type in self.tunnels:
             for option_string in self.tunnels[thread_type]:
@@ -433,9 +518,10 @@ class RedSSH(object):
         Kill the current session if actually connected.
         After this you might as well just free memory from the class instance.
         '''
-        if self.__check_for_attr__('past_login'):
-            self.close_tunnels()
+        if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
-                self.channel.close()
-                self.session.disconnect()
+                self.close_tunnels()
+                self._block(self.channel.close)
+                self._block(self.session.disconnect)
                 self.sock.close()
+                del self.sock, self.session, self.channel, self.past_login

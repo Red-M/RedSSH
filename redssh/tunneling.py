@@ -58,6 +58,9 @@
 
 import socket
 import select
+import time
+
+from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND, LIBSSH2_SESSION_BLOCK_OUTBOUND
 
 try:
     import SocketServer
@@ -80,12 +83,11 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
             return()
         try:
             peer = self.request.getpeername()
-            chan = self.ssh_transport.open_channel("direct-tcpip",(self.chain_host, self.chain_port),peer,)
+            chan = self.caller._block(self.caller.session.direct_tcpip_ex, self.dst_tup[0], self.dst_tup[1], self.src_tup[0], self.src_tup[1])
         except Exception as e:
             return()
-        if chan==None:
-            return()
 
+        i = None
         while True:
             try:
                 itc = self.queue.get(False)
@@ -93,19 +95,23 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                 pass
             if itc=='terminate':
                 break
-            r, w, x = select.select([self.request, chan], [], [])
+            (r, w, x) = select.select([self.request, self.caller.sock], [], [])
             if self.request in r:
                 data = self.request.recv(1024)
-                if len(data) == 0:
-                    break
-                chan.send(data)
-            if chan in r:
-                data = chan.recv(1024)
-                if len(data) == 0:
-                    break
-                self.request.send(data)
+                if len(data)==0:
+                    if i==None:
+                        i = time.time()+self.sock_timeout
+                    else:
+                        if i<time.time():
+                            break
+                    time.sleep(0.005)
+                    continue
+                self.caller._block_write(chan.write,data)
+            if self.caller.sock in r:
+                for buf in self.caller._read_iter(chan.read,0.01):
+                    self.request.send(buf)
 
-        chan.close()
+        self.caller._block(chan.close)
         self.request.close()
 
 
@@ -117,7 +123,7 @@ def reverse_handler(chan, host, port):
         return
 
     while True:
-        r, w, x = select.select([sock, chan], [], [])
+        (r, w, x) = select.select([sock, chan], [], [])
         if sock in r:
             data = sock.recv(1024)
             if len(data) == 0:
