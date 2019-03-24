@@ -23,9 +23,11 @@ import multiprocessing
 import socket
 import select
 from ssh2.session import Session as ssh2_session
-from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND, LIBSSH2_SESSION_BLOCK_OUTBOUND
+from ssh2.session import LIBSSH2_HOSTKEY_HASH_SHA1,LIBSSH2_HOSTKEY_TYPE_RSA
+from ssh2.knownhost import LIBSSH2_KNOWNHOST_TYPE_PLAIN,LIBSSH2_KNOWNHOST_KEYENC_RAW,LIBSSH2_KNOWNHOST_KEY_SSHRSA,LIBSSH2_KNOWNHOST_KEY_SSHDSS
+from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND
 from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
-from ssh2.sftp import LIBSSH2_FXF_TRUNC, LIBSSH2_FXF_WRITE, LIBSSH2_FXF_CREAT
+from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_CREAT
 
 
 from redssh import exceptions
@@ -48,7 +50,7 @@ class RedSSH(object):
     :param terminal: Set the terminal sent to the remote server to something other than the default of ``'vt100'``.
     :type terminal: ``str``
     '''
-    def __init__(self,prompt=r'.+?[\#\$]\s+',unique_prompt=False,encoding='utf8',newline='\r',terminal='vt100'):
+    def __init__(self,prompt=r'.+?[\#\$]\s+',unique_prompt=False,encoding='utf8',newline='\r',terminal='vt100',known_hosts=None):
         self.debug = False
         self.unique_prompt = unique_prompt
         self.encoding = encoding
@@ -60,11 +62,15 @@ class RedSSH(object):
         self.current_output_clean = ''
         self.newline = newline
         self.terminal = terminal
+        if known_hosts==None:
+            self.known_hosts_path = os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')
+        else:
+            self.known_hosts_path = known_hosts
 
     def __check_for_attr__(self,attr):
         return(attr in self.__dict__)
 
-    def _block_select(self, timeout=None):
+    def _block_select(self,timeout=None):
         block_direction = self.session.block_directions()
         if block_direction==0:
             return()
@@ -76,31 +82,31 @@ class RedSSH(object):
             wfds = [self.sock]
         select.select(rfds,wfds,[],timeout)
 
-    def _block(self, func, *args, **kwargs):
-        out = func(*args, **kwargs)
+    def _block(self,func,*args,**kwargs):
+        out = func(*args,**kwargs)
         while out==LIBSSH2_ERROR_EAGAIN:
             self._block_select()
-            out = func(*args, **kwargs)
+            out = func(*args,**kwargs)
         return(out)
 
-    def _block_write(self, func, data, timeout=None):
+    def _block_write(self,func,data,timeout=None):
         data_len = len(data)
         total_written = 0
         while total_written<data_len:
-            (rc, bytes_written) = func(data[total_written:])
+            (rc,bytes_written) = func(data[total_written:])
             total_written+=bytes_written
             if rc==LIBSSH2_ERROR_EAGAIN:
                 self._block_select(timeout)
 
-    def _read_iter(self, func, timeout=None):
+    def _read_iter(self,func,timeout=None):
         pos = 0
         remainder_len = 0
         remainder = b''
-        (size, data) = func()
+        (size,data) = func()
         while size==LIBSSH2_ERROR_EAGAIN or size>0:
             if size==LIBSSH2_ERROR_EAGAIN:
                 self._block_select(timeout)
-                (size, data) = func()
+                (size,data) = func()
             if timeout is not None and size==LIBSSH2_ERROR_EAGAIN:
                 raise(StopIteration)
             while size>0:
@@ -112,13 +118,31 @@ class RedSSH(object):
                     else:
                         yield(data[pos:size])
                     pos = size
-                (size, data) = func()
+                (size,data) = func()
                 pos = 0
         if remainder_len > 0:
             yield(remainder)
 
-    def connect(self,hostname, port=22, username=None, password=None, pkey=None, key_filename=None, timeout=None,
-        allow_agent=True, look_for_keys=True, passphrase=None):
+    def check_host_key(self,hostname,port):
+        self.known_hosts = self.session.knownhost_init()
+        self.known_hosts.readfile(self.known_hosts_path)
+        (host_key,host_key_type) = self.session.hostkey()
+
+        if isinstance(hostname,type('')):
+            hostname = hostname.encode(self.encoding)
+        if host_key_type==LIBSSH2_HOSTKEY_TYPE_RSA:
+            server_key_type = LIBSSH2_KNOWNHOST_KEY_SSHRSA
+        else:
+            server_key_type = LIBSSH2_KNOWNHOST_KEY_SSHDSS
+        key_bitmask = LIBSSH2_KNOWNHOST_TYPE_PLAIN|LIBSSH2_KNOWNHOST_KEYENC_RAW|server_key_type
+        self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
+        self.known_hosts.addc(hostname,host_key,key_bitmask)
+        for hk in self.known_hosts.get():
+            if hk.name==hostname:
+                print(self.known_hosts.writeline(hk))
+
+    def connect(self,hostname,port=22,username=None,password=None,pkey=None,key_filename=None,timeout=None,
+        allow_agent=True,look_for_keys=True,passphrase=None):
         '''
         .. warning::
             Some authentication methods are not yet supported!
@@ -145,10 +169,12 @@ class RedSSH(object):
         :type timeout: ``float``
         '''
         if self.__check_for_attr__('past_login')==False:
-            self.sock = socket.create_connection((hostname, port), timeout)
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self.sock = socket.create_connection((hostname,port),timeout)
+            self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
             self.session = ssh2_session()
             self.session.handshake(self.sock)
+
+            # self.check_host_key(hostname,port)
 
             auth_requests = self.session.userauth_list(username)
             for auth_request in auth_requests:
@@ -216,11 +242,11 @@ class RedSSH(object):
             string = re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?','',string)
         return(string)
 
-    def expect(self, re_strings='',default_match_prefix='.*\n',strip_ansi=True):
+    def expect(self,re_strings='',default_match_prefix='.*\n',strip_ansi=True):
         '''
         This function takes in a regular expression (or regular expressions)
-        that represent the last line of output from the server.  The function
-        waits for one or more of the terms to be matched.  The regexes are
+        that represent the last line of output from the server. The function
+        waits for one or more of the terms to be matched. The regexes are
         matched using expression ``r'\\n<regex>$'`` so you'll need to provide an
         easygoing regex such as ``'.*server.*'`` if you wish to have a fuzzy
         match.
@@ -255,7 +281,7 @@ class RedSSH(object):
                 self.current_output += current_buffer_decoded
 
         if len(re_strings)!=0:
-            found_pattern = [(re_index, re_string) for (re_index,re_string) in enumerate(re_strings) if re.match(default_match_prefix+re_string+'$',self.current_output,re.DOTALL)]
+            found_pattern = [(re_index,re_string) for (re_index,re_string) in enumerate(re_strings) if re.match(default_match_prefix+re_string+'$',self.current_output,re.DOTALL)]
 
         self.current_output_clean = self.current_output
 
@@ -376,10 +402,10 @@ class RedSSH(object):
         :type recursive: ``bool``
         '''
         if self.__check_for_attr__('sftp_client'):
-            for dirpath, dirnames, filenames in os.walk(local_path):
+            for (dirpath,dirnames,filenames) in os.walk(local_path):
                 for dirname in dirnames:
-                    local_dir_path = os.path.join(local_path, dirname)
-                    remote_dir_path = os.path.join(remote_path, dirname)
+                    local_dir_path = os.path.join(local_path,dirname)
+                    remote_dir_path = os.path.join(remote_path,dirname)
                     if not dirname in self._block(self.sftp_client.opendir,remote_path).readdir():
                         try:
                             self._block(self.sftp_client.mkdir,remote_dir_path,os.stat(local_dir_path).st_mode)
@@ -388,7 +414,7 @@ class RedSSH(object):
                     if recursive==True:
                         self.put_folder(local_dir_path,remote_dir_path,recursive=recursive)
                 for filename in filenames:
-                    local_file_path = os.path.join(dirpath, filename)
+                    local_file_path = os.path.join(dirpath,filename)
                     remote_file_base = local_file_path[len(local_path):0-len(filename)]
                     if remote_file_base.startswith('/'):
                         remote_file_base = remote_file_base[1:]
@@ -414,7 +440,7 @@ class RedSSH(object):
             self._block(f.close)
 
 
-    def forward_tunnel(self,local_port, remote_host, remote_port, bind_addr='', socket_timeout=5):
+    def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr='',socket_timeout=5):
         '''
         .. warning::
             This works but may have some broken bits
@@ -455,7 +481,7 @@ class RedSSH(object):
             self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
         return(self.tunnels['local'][option_string])
 
-    def reverse_tunnel(self, local_port, remote_host, remote_port):
+    def reverse_tunnel(self,local_port,remote_host,remote_port):
         '''
         .. warning::
             This is broken in this commit. Will be fixed later. It currently does nothing.
@@ -475,13 +501,13 @@ class RedSSH(object):
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
             transport = self.session.open_session()
-            transport.request_port_forward('', local_port)
+            transport.request_port_forward('',local_port)
             thread_queue = multiprocessing.Queue()
             def port_main(transport,remote_host,remote_port,queue):
                 while True:
                     chan = transport.accept(1)
                     if not chan==None:
-                        thr = threading.Thread(target=tunneling.reverse_handler, args=(chan, remote_host, remote_port))
+                        thr = threading.Thread(target=tunneling.reverse_handler,args=(chan,remote_host,remote_port))
                         thr.daemon = True
                         thr.start()
                     try:
@@ -489,7 +515,7 @@ class RedSSH(object):
                             break
                     except Exception as e:
                         pass
-            tun_thread = threading.Thread(target=port_main, args=(transport, remote_host, remote_port, thread_queue))
+            tun_thread = threading.Thread(target=port_main,args=(transport,remote_host,remote_port,thread_queue))
             tun_thread.daemon = True
             tun_thread.name = option_string
             tun_thread.start()
@@ -524,4 +550,4 @@ class RedSSH(object):
                 self._block(self.channel.close)
                 self._block(self.session.disconnect)
                 self.sock.close()
-                del self.sock, self.session, self.channel, self.past_login
+                del self.sock,self.session,self.channel,self.past_login
