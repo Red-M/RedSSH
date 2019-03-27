@@ -41,8 +41,6 @@ class RedSSH(object):
 
     :param prompt: The basic prompt to expect for the first command line.
     :type prompt: ``regex string``
-    :param unique_prompt: Should a unique prompt be used for matching?
-    :type unique_prompt: ``bool``
     :param encoding: Set the encoding to something other than the default of ``'utf8'`` when your target SSH server doesn't return UTF-8.
     :type encoding: ``str``
     :param newline: Set the newline for sending and recieving text to the remote server to something other than the default of ``'\\r'``.
@@ -50,9 +48,8 @@ class RedSSH(object):
     :param terminal: Set the terminal sent to the remote server to something other than the default of ``'vt100'``.
     :type terminal: ``str``
     '''
-    def __init__(self,prompt=r'.+?[\#\$]\s+',unique_prompt=False,encoding='utf8',newline='\r',terminal='vt100',known_hosts=None):
+    def __init__(self,prompt=r'.+?[\#\$]\s+',encoding='utf8',newline='\r',terminal='vt100',known_hosts=None):
         self.debug = False
-        self.unique_prompt = unique_prompt
         self.encoding = encoding
         self.basic_prompt = prompt
         self.prompt_regex = prompt
@@ -142,7 +139,7 @@ class RedSSH(object):
                 print(self.known_hosts.writeline(hk))
 
     def connect(self,hostname,port=22,username=None,password=None,pkey=None,key_filename=None,timeout=None,
-        allow_agent=True,look_for_keys=True,passphrase=None):
+        allow_agent=True,look_for_keys=True,passphrase=None,sock=None,auto_unique_prompt=True):
         '''
         .. warning::
             Some authentication methods are not yet supported!
@@ -165,12 +162,19 @@ class RedSSH(object):
         :type passphrase: ``str``
         :param look_for_keys: Enable offering keys in ``~/.ssh`` automatically. NOT IMPLEMENTED!
         :type look_for_keys: ``bool``
+        :param sock: A pre-connected socket to the remote server. Useful if you have strange network requirements.
+        :type sock: ``socket``
         :param timeout: Timeout for the socket connection to the remote server.
         :type timeout: ``float``
+        :param auto_unique_prompt: Automatically set a unique prompt to search for once logged into the remote server.
+        :type auto_unique_prompt: ``float``
         '''
         if self.__check_for_attr__('past_login')==False:
-            self.sock = socket.create_connection((hostname,port),timeout)
-            self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
+            if sock==None:
+                self.sock = socket.create_connection((hostname,port),timeout)
+                self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
+            else:
+                self.sock = sock
             self.session = ssh2_session()
             self.session.handshake(self.sock)
 
@@ -181,8 +185,8 @@ class RedSSH(object):
                 if allow_agent==True and auth_request=='publickey':
                     if allow_agent==True:
                         self.session.agent_auth(username)
-                        agent = self.session.agent_init()
-                        agent.connect()
+                        # agent = self.session.agent_init()
+                        # agent.connect()
                     elif not pkey==None:
                         pass
                     elif key_filename!=None:
@@ -203,7 +207,8 @@ class RedSSH(object):
             self.past_login = True
             self.device_init()
             self.expect(self.prompt_regex)
-            self.set_unique_prompt()
+            if auto_unique_prompt==True:
+                self.set_unique_prompt()
 
     def prompt(self):
         '''
@@ -242,7 +247,7 @@ class RedSSH(object):
             string = re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?','',string)
         return(string)
 
-    def expect(self,re_strings='',default_match_prefix='.*\n',strip_ansi=True):
+    def expect(self,re_strings='',default_match_prefix='',strip_ansi=True):
         '''
         This function takes in a regular expression (or regular expressions)
         that represent the last line of output from the server. The function
@@ -258,11 +263,9 @@ class RedSSH(object):
                            that we should expect; if this is not specified,
                            then ``EOF`` is expected (i.e. the shell is completely
                            closed after the exit command is issued)
-        :param default_match_prefix: A prefix to all match regexes, defaults to ``'.*\\n'``,
-                                     can set to ``''`` on cases prompt is the first line,
-                                     or the command has no output.
-        :param strip_ansi: If ``True``, will strip ansi control chars befores regex matching
-                           default to True.
+        :param default_match_prefix: A prefix to all match regexes, defaults to ``''``.
+                                     Useful for making sure you have a prefix to match the start of a prompt.
+        :param strip_ansi: If ``True``, will strip ansi control chars befores regex matching.
         :return: ``int`` - An ``EOF`` returns ``-1``, a regex metch returns ``0`` and a match in a
                  list of regexes returns the index of the matched string in
                  the list.
@@ -272,16 +275,13 @@ class RedSSH(object):
         if isinstance(re_strings,str) and len(re_strings)!=0:
             re_strings = [re_strings]
 
-        while (len(re_strings)==0 or not [re_string for re_string in re_strings if re.match(default_match_prefix+re_string+'$',self.current_output,re.DOTALL)]):
+        while (len(re_strings)==0 or not [re_string for re_string in re_strings if re.search(default_match_prefix+re_string,self.current_output,re.DOTALL)]):
             for current_buffer in self._read_iter(self.channel.read,0.01):
-                # print(current_buffer)
-                # print(current_buffer==None)
-
-                current_buffer_decoded = self.remote_text_clean(current_buffer.decode(self.encoding),strip_ansi=True)
+                current_buffer_decoded = self.remote_text_clean(current_buffer.decode(self.encoding),strip_ansi=strip_ansi)
                 self.current_output += current_buffer_decoded
 
         if len(re_strings)!=0:
-            found_pattern = [(re_index,re_string) for (re_index,re_string) in enumerate(re_strings) if re.match(default_match_prefix+re_string+'$',self.current_output,re.DOTALL)]
+            found_pattern = [(re_index,re_string) for (re_index,re_string) in enumerate(re_strings) if re.search(default_match_prefix+re_string,self.current_output,re.DOTALL)]
 
         self.current_output_clean = self.current_output
 
@@ -290,7 +290,7 @@ class RedSSH(object):
         self.current_send_string = ''
 
         if len(re_strings)!=0 and len(found_pattern)!=0:
-            self.current_output_clean = re.sub(found_pattern[0][1]+'$','',self.current_output_clean)
+            self.current_output_clean = re.sub(found_pattern[0][1],'',self.current_output_clean)
             self.last_match = found_pattern[0][1]
             return(found_pattern[0][0])
         else:
