@@ -442,9 +442,6 @@ class RedSSH(object):
 
     def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr='',socket_timeout=5):
         '''
-        .. warning::
-            This works but may have some broken bits
-
 
         Forwards a port the same way the ``-L`` option does for the OpenSSH client.
 

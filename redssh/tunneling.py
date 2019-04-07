@@ -99,13 +99,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
             if self.request in r:
                 data = self.request.recv(1024)
                 if len(data)==0:
-                    if i==None:
-                        i = time.time()+self.sock_timeout
-                    else:
-                        if i<time.time():
-                            break
-                    time.sleep(0.005)
-                    continue
+                    break
                 self.caller._block_write(chan.write,data)
             if self.caller.sock in r:
                 for buf in self.caller._read_iter(chan.read,0.01):
