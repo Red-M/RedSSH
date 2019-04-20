@@ -392,6 +392,7 @@ class RedSSH(object):
     def sftp_open(self,remote_path,sftp_flags,file_mode):
         '''
         Open a file object over SFTP on the remote server.
+
         .. warning::
             This will only open files with the user you logged in as, not the current user you are running commands as.
 
@@ -403,11 +404,13 @@ class RedSSH(object):
         :type file_mode: ``int``
         :return: ``SFTPFileObj``
         '''
-        return(self._block(self.sftp_client.open,remote_path,sftp_flags,file_mode))
+        if self.__check_for_attr__('sftp_client'):
+            return(self._block(self.sftp_client.open,remote_path,sftp_flags,file_mode))
 
     def sftp_write(self,file_obj,data_bytes):
         '''
         Write to a file object over SFTP on the remote server.
+
         .. warning::
             This will only write files with the user you logged in as, not the current user you are running commands as.
 
@@ -417,11 +420,13 @@ class RedSSH(object):
         :type data_bytes: ``byte str``
         :return: ``None``
         '''
-        self._block_write(file_obj.write,data_bytes)
+        if self.__check_for_attr__('sftp_client'):
+            self._block_write(file_obj.write,data_bytes)
 
     def sftp_read(self,file_obj,iter=False):
         '''
         Read from file object over SFTP on the remote server.
+
         .. warning::
             This will only read files with the user you logged in as, not the current user you are running commands as.
 
@@ -431,14 +436,15 @@ class RedSSH(object):
         :type iter: ``bool``
         :return: ``byte str`` or ``iter``
         '''
-        if iter==True:
-            return(self._read_iter(file_obj.read))
-        elif iter==False:
-            data = b''
-            iter = self._read_iter(file_obj.read)
-            for chunk in iter:
-                data+=chunk
-            return(data)
+        if self.__check_for_attr__('sftp_client'):
+            if iter==True:
+                return(self._read_iter(file_obj.read))
+            elif iter==False:
+                data = b''
+                iter = self._read_iter(file_obj.read)
+                for chunk in iter:
+                    data+=chunk
+                return(data)
 
     def sftp_close(self,file_obj):
         '''
@@ -450,8 +456,9 @@ class RedSSH(object):
         :type file_obj: ``SFTPFileObj``
         :return: ``None``
         '''
-        self._block(file_obj.fsync)
-        self._block(file_obj.close)
+        if self.__check_for_attr__('sftp_client'):
+            self._block(file_obj.fsync)
+            self._block(file_obj.close)
 
     def put_folder(self,local_path,remote_path,recursive=False):
         '''
