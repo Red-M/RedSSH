@@ -463,7 +463,7 @@ class RedSSH(object):
 
     def put_folder(self,local_path,remote_path,recursive=False):
         '''
-        Upload an entire folder via SFTP to the remote session. Similar to ``cp /files/* /target``
+        Upload an entire folder via SFTP to the remote session. Similar to ``cp -r /files/* /target``
         Also retains file permissions.
 
         .. warning::
