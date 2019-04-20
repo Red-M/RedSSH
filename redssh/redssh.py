@@ -27,12 +27,15 @@ from ssh2.session import LIBSSH2_HOSTKEY_HASH_SHA1,LIBSSH2_HOSTKEY_TYPE_RSA
 from ssh2.knownhost import LIBSSH2_KNOWNHOST_TYPE_PLAIN,LIBSSH2_KNOWNHOST_KEYENC_RAW,LIBSSH2_KNOWNHOST_KEY_SSHRSA,LIBSSH2_KNOWNHOST_KEY_SSHDSS
 from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND
 from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
-from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_CREAT
+from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_READ,LIBSSH2_FXF_CREAT,LIBSSH2_SFTP_S_IRUSR,LIBSSH2_SFTP_S_IWUSR,LIBSSH2_SFTP_S_IRGRP,LIBSSH2_SFTP_S_IWGRP,LIBSSH2_SFTP_S_IROTH
 
 
 from redssh import exceptions
 from redssh import tunneling
 
+
+DEFAULT_WRITE_MODE = LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC
+DEFAULT_FILE_MODE = LIBSSH2_SFTP_S_IRUSR | LIBSSH2_SFTP_S_IWUSR | LIBSSH2_SFTP_S_IRGRP | LIBSSH2_SFTP_S_IWGRP | LIBSSH2_SFTP_S_IROTH
 
 class RedSSH(object):
     '''
@@ -59,6 +62,7 @@ class RedSSH(object):
         self.current_output_clean = ''
         self.newline = newline
         self.terminal = terminal
+        self.start_scp = self.start_sftp
         if known_hosts==None:
             self.known_hosts_path = os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')
         else:
@@ -378,13 +382,76 @@ class RedSSH(object):
         else:
             raise(exceptions.BadSudoPassword())
 
-
-    def start_scp(self):
+    def start_sftp(self):
         '''
         Start the SFTP client.
         '''
         if not self.__check_for_attr__('sftp_client'):
             self.sftp_client = self._block(self.session.sftp_init)
+
+    def sftp_open(self,remote_path,sftp_flags,file_mode):
+        '''
+        Open a file object over SFTP on the remote server.
+        .. warning::
+            This will only open files with the user you logged in as, not the current user you are running commands as.
+
+        :param remote_path: Path that file is lcoated at on the remote server.
+        :type remote_path: ``str``
+        :param sftp_flags: Flags for the SFTP session to understand what you are going to do with the file.
+        :type sftp_flags: ``int``
+        :param file_mode: File mode for the file being opened.
+        :type file_mode: ``int``
+        :return: ``SFTPFileObj``
+        '''
+        return(self._block(self.sftp_client.open,remote_path,sftp_flags,file_mode))
+
+    def sftp_write(self,file_obj,data_bytes):
+        '''
+        Write to a file object over SFTP on the remote server.
+        .. warning::
+            This will only write files with the user you logged in as, not the current user you are running commands as.
+
+        :param file_obj: SFTPFileObj to interact with.
+        :type file_obj: ``SFTPFileObj``
+        :param data_bytes: Bytes to write to the file with.
+        :type data_bytes: ``byte str``
+        :return: ``None``
+        '''
+        self._block_write(file_obj.write,data_bytes)
+
+    def sftp_read(self,file_obj,iter=False):
+        '''
+        Read from file object over SFTP on the remote server.
+        .. warning::
+            This will only read files with the user you logged in as, not the current user you are running commands as.
+
+        :param file_obj: SFTPFileObj to interact with.
+        :type file_obj: ``SFTPFileObj``
+        :param iter: Flag for if you want the iterable object instead of just a byte string returned.
+        :type iter: ``bool``
+        :return: ``byte str`` or ``iter``
+        '''
+        if iter==True:
+            return(self._read_iter(file_obj.read))
+        elif iter==False:
+            data = b''
+            iter = self._read_iter(file_obj.read)
+            for chunk in iter:
+                data+=chunk
+            return(data)
+
+    def sftp_close(self,file_obj):
+        '''
+        Closes a file object over SFTP on the remote server. It is a good idea to delete the ``file_obj`` after calling this.
+        .. warning::
+            This will only close files with the user you logged in as, not the current user you are running commands as.
+
+        :param file_obj: SFTPFileObj to interact with.
+        :type file_obj: ``SFTPFileObj``
+        :return: ``None``
+        '''
+        self._block(file_obj.fsync)
+        self._block(file_obj.close)
 
     def put_folder(self,local_path,remote_path,recursive=False):
         '''
