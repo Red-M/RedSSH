@@ -449,6 +449,7 @@ class RedSSH(object):
     def sftp_close(self,file_obj):
         '''
         Closes a file object over SFTP on the remote server. It is a good idea to delete the ``file_obj`` after calling this.
+
         .. warning::
             This will only close files with the user you logged in as, not the current user you are running commands as.
 
