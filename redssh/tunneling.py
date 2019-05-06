@@ -109,25 +109,31 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
         self.request.close()
 
 
-def reverse_handler(chan, host, port):
-    sock = socket.socket()
+def reverse_handler(self, chan, host, port, queue):
     try:
-        sock.connect((host, port))
+        request = socket.create_connection((host,port))
     except Exception as e:
-        return
+        return()
 
     while True:
-        (r, w, x) = select.select([sock, chan], [], [])
-        if sock in r:
-            data = sock.recv(1024)
-            if len(data) == 0:
+        itc = None
+        try:
+            itc = queue.get(False)
+        except Exception as e:
+            pass
+        if itc=='terminate':
+            break
+        print(request)
+        (r, w, x) = select.select([self.sock, request], [], [])
+        print(r)
+        if request in r:
+            data = request.recv(1024)
+            if len(data)==0:
                 break
-            chan.send(data)
-        if chan in r:
-            data = chan.recv(1024)
-            if len(data) == 0:
-                break
-            sock.send(data)
-    chan.close()
-    sock.close()
+            self._block_write(chan.write,data)
+        if self.sock in r:
+            for buf in self._read_iter(chan.read,0.01):
+                request.send(buf)
+    self._block(chan.close)
+    request.close()
 
