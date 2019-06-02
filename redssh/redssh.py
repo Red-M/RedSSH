@@ -553,7 +553,7 @@ class RedSSH(object):
             self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
         return(self.tunnels['local'][option_string])
 
-    def reverse_tunnel(self, local_port, remote_host, remote_port):
+    def reverse_tunnel(self,local_port,remote_host,remote_port):
         '''
         .. warning::
             This is broken in this commit. Will be fixed later. It currently does nothing.
@@ -573,21 +573,21 @@ class RedSSH(object):
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
             thread_queue = multiprocessing.Queue()
-            def port_main(remote_host, remote_port, local_port, queue):
-                listener = self._block(self.session.forward_listen, local_port)
+            def port_main(remote_host,remote_port,local_port,queue):
+                listener = self._block(self.session.forward_listen,local_port)
                 while True:
                     chan = listener.forward_accept()
                     if not chan==LIBSSH2_ERROR_EAGAIN:
-                        thr = threading.Thread(target=tunneling.reverse_handler, args=(self, chan, remote_host, remote_port, queue))
+                        thr = threading.Thread(target=tunneling.reverse_handler,args=(self,chan,remote_host,remote_port,queue))
                         thr.daemon = True
                         thr.start()
                     elif chan==LIBSSH2_ERROR_EAGAIN:
                         self._block_select(1)
-            tun_thread = threading.Thread(target=port_main, args=(remote_host, remote_port, local_port, thread_queue))
+            tun_thread = threading.Thread(target=port_main,args=(remote_host,remote_port,local_port,thread_queue))
             tun_thread.daemon = True
             tun_thread.name = option_string
             tun_thread.start()
-            self.tunnels['remote'][option_string] = (tun_thread, thread_queue, None)
+            self.tunnels['remote'][option_string] = (tun_thread,thread_queue,None)
         return(self.tunnels['remote'][option_string])
 
 

@@ -3,7 +3,7 @@
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 2 of the License,or
 # (at your option) any later version.
 
 # This program is distributed in the hope that it will be useful,
@@ -12,8 +12,8 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# with this program; if not,write to the Free Software Foundation,Inc.,
+# 51 Franklin Street,Fifth Floor,Boston,MA 02110-1301 USA.
 
 
 
@@ -25,17 +25,17 @@
 #
 # Paramiko is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation; either version 2.1 of the License, or (at your option)
+# Software Foundation; either version 2.1 of the License,or (at your option)
 # any later version.
 #
-# Paramiko is distributed in the hope that it will be useful, but WITHOUT ANY
+# Paramiko is distributed in the hope that it will be useful,but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
 # details.
 #
 # You should have received a copy of the GNU Lesser General Public License
-# along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# along with Paramiko; if not,write to the Free Software Foundation,Inc.,
+# 59 Temple Place,Suite 330,Boston,MA  02111-1307  USA.
 
 # rforward.py from paramiko
 # Copyright (C) 2008  Robey Pointer <robeypointer@gmail.com>
@@ -44,30 +44,30 @@
 #
 # Paramiko is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation; either version 2.1 of the License, or (at your option)
+# Software Foundation; either version 2.1 of the License,or (at your option)
 # any later version.
 #
-# Paramiko is distributed in the hope that it will be useful, but WITHOUT ANY
+# Paramiko is distributed in the hope that it will be useful,but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
 # details.
 #
 # You should have received a copy of the GNU Lesser General Public License
-# along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# along with Paramiko; if not,write to the Free Software Foundation,Inc.,
+# 59 Temple Place,Suite 330,Boston,MA  02111-1307  USA.
 
 import socket
 import select
 import time
 
-from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND, LIBSSH2_SESSION_BLOCK_OUTBOUND
+from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND
 
 try:
     import SocketServer
 except ImportError:
     import socketserver as SocketServer
 
-class ForwardServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class ForwardServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
@@ -83,7 +83,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
             return()
         try:
             peer = self.request.getpeername()
-            chan = self.caller._block(self.caller.session.direct_tcpip_ex, self.dst_tup[0], self.dst_tup[1], self.src_tup[0], self.src_tup[1])
+            chan = self.caller._block(self.caller.session.direct_tcpip_ex,self.dst_tup[0],self.dst_tup[1],self.src_tup[0],self.src_tup[1])
         except Exception as e:
             return()
 
@@ -95,7 +95,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                 pass
             if itc=='terminate':
                 break
-            (r, w, x) = select.select([self.request, self.caller.sock], [], [])
+            (r,w,x) = select.select([self.request,self.caller.sock],[],[])
             if self.request in r:
                 data = self.request.recv(1024)
                 if len(data)==0:
@@ -109,7 +109,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
         self.request.close()
 
 
-def reverse_handler(self, chan, host, port, queue):
+def reverse_handler(self,chan,host,port,queue):
     try:
         request = socket.create_connection((host,port))
     except Exception as e:
@@ -124,7 +124,7 @@ def reverse_handler(self, chan, host, port, queue):
         if itc=='terminate':
             break
         print(request)
-        (r, w, x) = select.select([self.sock, request], [], [])
+        (r,w,x) = select.select([self.sock,request],[],[])
         print(r)
         if request in r:
             data = request.recv(1024)
