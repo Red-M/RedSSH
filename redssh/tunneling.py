@@ -61,6 +61,7 @@ import select
 import time
 
 from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND
+from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
 
 try:
     import SocketServer
@@ -82,7 +83,6 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
         if itc=='terminate':
             return()
         try:
-            peer = self.request.getpeername()
             chan = self.caller._block(self.caller.session.direct_tcpip_ex,self.dst_tup[0],self.dst_tup[1],self.src_tup[0],self.src_tup[1])
         except Exception as e:
             return()
@@ -93,7 +93,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                 itc = self.queue.get(False)
             except Exception as e:
                 pass
-            if itc=='terminate':
+            if itc=='terminate' or chan.eof():
                 break
             (r,w,x) = select.select([self.request,self.caller.sock],[],[])
             if self.request in r:
@@ -105,11 +105,18 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                 for buf in self.caller._read_iter(chan.read,0.01):
                     self.request.send(buf)
 
-        self.caller._block(chan.close)
+        if not chan.eof():
+            self.caller._block(chan.close)
         self.request.close()
 
 
-def reverse_handler(self,chan,host,port,queue):
+def reverse_handler(self,listener,host,port,local_port,queue):
+    while True:
+        chan = listener.forward_accept()
+        if not chan==LIBSSH2_ERROR_EAGAIN:
+            break
+        elif chan==LIBSSH2_ERROR_EAGAIN:
+            self._block_select(1)
     try:
         request = socket.create_connection((host,port))
     except Exception as e:
@@ -121,19 +128,22 @@ def reverse_handler(self,chan,host,port,queue):
             itc = queue.get(False)
         except Exception as e:
             pass
-        if itc=='terminate':
+        if itc=='terminate' or chan.eof():
             break
-        print(request)
+        print(1)
         (r,w,x) = select.select([self.sock,request],[],[])
-        print(r)
         if request in r:
             data = request.recv(1024)
             if len(data)==0:
                 break
+            print('request')
             self._block_write(chan.write,data)
         if self.sock in r:
+            print('sock')
             for buf in self._read_iter(chan.read,0.01):
                 request.send(buf)
-    self._block(chan.close)
+    if not chan.eof():
+        self._block(chan.close)
     request.close()
+
 

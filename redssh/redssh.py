@@ -515,7 +515,7 @@ class RedSSH(object):
             self._block(f.close)
 
 
-    def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr='',socket_timeout=5):
+    def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
         '''
 
         Forwards a port the same way the ``-L`` option does for the OpenSSH client.
@@ -528,8 +528,6 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
-        :param socket_timeout: The amount of time to hold a forwarded socket open for with no traffic.
-        :type socket_timeout: ``int`` or ``float``
         :return: ``tuple`` of ``(tun_thread,thread_queue,tun_server)`` this is so you can control the tunnel's thread if you need to.
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
@@ -543,7 +541,6 @@ class RedSSH(object):
                 queue = thread_queue
                 src_tup = (bind_addr,local_port)
                 dst_tup = (remote_host,remote_port)
-                sock_timeout = socket_timeout
 
             tun_server = tunneling.ForwardServer((bind_addr,local_port),SubHander)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
@@ -553,7 +550,7 @@ class RedSSH(object):
             self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
         return(self.tunnels['local'][option_string])
 
-    def reverse_tunnel(self,local_port,remote_host,remote_port):
+    def reverse_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
         '''
         .. warning::
             This is broken in this commit. Will be fixed later. It currently does nothing.
@@ -573,17 +570,8 @@ class RedSSH(object):
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
             thread_queue = multiprocessing.Queue()
-            def port_main(remote_host,remote_port,local_port,queue):
-                listener = self._block(self.session.forward_listen,local_port)
-                while True:
-                    chan = listener.forward_accept()
-                    if not chan==LIBSSH2_ERROR_EAGAIN:
-                        thr = threading.Thread(target=tunneling.reverse_handler,args=(self,chan,remote_host,remote_port,queue))
-                        thr.daemon = True
-                        thr.start()
-                    elif chan==LIBSSH2_ERROR_EAGAIN:
-                        self._block_select(1)
-            tun_thread = threading.Thread(target=port_main,args=(remote_host,remote_port,local_port,thread_queue))
+            listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
+            tun_thread = threading.Thread(target=tunneling.reverse_handler,args=(self,listener,remote_host,remote_port,local_port,thread_queue))
             tun_thread.daemon = True
             tun_thread.name = option_string
             tun_thread.start()
