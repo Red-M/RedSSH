@@ -24,7 +24,7 @@ copyright = u'2018, Red_M'
 author = u'Red_M'
 
 # The short X.Y version
-version = u'1.2.2'
+version = u'1.2.4'
 # The full version, including alpha/beta/rc tags
 release = version+' beta'
 

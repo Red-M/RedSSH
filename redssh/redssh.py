@@ -31,7 +31,7 @@ from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_READ,LIBSS
 
 
 from redssh import exceptions
-from redssh import tunneling
+from redssh import tunnelling
 
 
 DEFAULT_WRITE_MODE = LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC
@@ -534,7 +534,7 @@ class RedSSH(object):
         if not option_string in self.tunnels['local']:
             thread_queue = multiprocessing.Queue()
 
-            class SubHander(tunneling.ForwardHandler):
+            class SubHander(tunnelling.ForwardHandler):
                 caller = self
                 chain_host = remote_host
                 chain_port = remote_port
@@ -542,7 +542,7 @@ class RedSSH(object):
                 src_tup = (bind_addr,local_port)
                 dst_tup = (remote_host,remote_port)
 
-            tun_server = tunneling.ForwardServer((bind_addr,local_port),SubHander)
+            tun_server = tunnelling.ForwardServer((bind_addr,local_port),SubHander)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
             tun_thread.name = option_string
@@ -571,7 +571,7 @@ class RedSSH(object):
         if not option_string in self.tunnels['remote']:
             thread_queue = multiprocessing.Queue()
             listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
-            tun_thread = threading.Thread(target=tunneling.reverse_handler,args=(self,listener,remote_host,remote_port,local_port,thread_queue))
+            tun_thread = threading.Thread(target=tunnelling.reverse_handler,args=(self,listener,remote_host,remote_port,local_port,thread_queue))
             tun_thread.daemon = True
             tun_thread.name = option_string
             tun_thread.start()
