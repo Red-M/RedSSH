@@ -21,11 +21,11 @@ class RedSSHException(Exception):
     '''
     pass
 
-class BadSudoPassword(RedSSHException):
+class ExampleException(RedSSHException):
     '''
-    This will be raised when a password does not acquire root via sudo/su.
+    Example.
     '''
     def __init__(self):
-        RedSSHException.__init__(self,'Bad sudo password provided, could not gain root.')
+        RedSSHException.__init__(self,'Bad thing happened.')
 
 

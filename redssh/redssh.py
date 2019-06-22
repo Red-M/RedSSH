@@ -42,25 +42,15 @@ class RedSSH(object):
     Instances the start of an SSH connection.
     Extra options are available after :func:`redssh.RedSSH.connect` is called.
 
-    :param prompt: The basic prompt to expect for the first command line.
-    :type prompt: ``regex string``
     :param encoding: Set the encoding to something other than the default of ``'utf8'`` when your target SSH server doesn't return UTF-8.
     :type encoding: ``str``
-    :param newline: Set the newline for sending and recieving text to the remote server to something other than the default of ``'\\r'``.
-    :type newline: ``str``
     :param terminal: Set the terminal sent to the remote server to something other than the default of ``'vt100'``.
     :type terminal: ``str``
     '''
-    def __init__(self,prompt=r'.+?[\#\$]\s+',encoding='utf8',newline='\r',terminal='vt100',known_hosts=None):
+    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None):
         self.debug = False
         self.encoding = encoding
-        self.basic_prompt = prompt
-        self.prompt_regex = prompt
         self.tunnels = {'local':{},'remote':{}}
-        self.current_send_string = ''
-        self.current_output = ''
-        self.current_output_clean = ''
-        self.newline = newline
         self.terminal = terminal
         self.start_scp = self.start_sftp
         if known_hosts==None:
@@ -143,7 +133,7 @@ class RedSSH(object):
                 print(self.known_hosts.writeline(hk))
 
     def connect(self,hostname,port=22,username=None,password=None,pkey=None,key_filename=None,timeout=None,
-        allow_agent=True,look_for_keys=True,passphrase=None,sock=None,auto_unique_prompt=True):
+        allow_agent=True,look_for_keys=True,passphrase=None,sock=None):
         '''
         .. warning::
             Some authentication methods are not yet supported!
@@ -170,8 +160,6 @@ class RedSSH(object):
         :type sock: ``socket``
         :param timeout: Timeout for the socket connection to the remote server.
         :type timeout: ``float``
-        :param auto_unique_prompt: Automatically set a unique prompt to search for once logged into the remote server.
-        :type auto_unique_prompt: ``float``
         '''
         if self.__check_for_attr__('past_login')==False:
             if sock==None:
@@ -210,26 +198,29 @@ class RedSSH(object):
             self._block(self.channel.shell)
             self.past_login = True
             self.device_init()
-            self.expect(self.prompt_regex)
-            if auto_unique_prompt==True:
-                self.set_unique_prompt()
 
-    def prompt(self):
+    def read(self,wait_time=0.01):
         '''
-        Get a command line prompt in the terminal.
-        Useful for using :func:`redssh.RedSSH.sendline` to send commands
-        then using this for when you want to get back to a prompt to enter further commands.
-        '''
-        self.expect(self.prompt_regex)
+        Recieve data from the remote session.
+        Only works if the current session has made it past the login process.
 
-    def sendline_raw(self,string):
+        :param wait_time: Block for this long to recieve data from the remote session.
+        :type wait_time: ``float``
+        :return: ``generator`` - A generator of byte strings that has been recieved in the time given.
         '''
-        Use this when you want to directly interact with the remote session.
+        if self.past_login==True:
+            return(self._read_iter(self.channel.read,wait_time))
+
+    def send(self,string):
+        '''
+        Send data to the remote session.
+        Only works if the current session has made it past the login process.
 
         :param string: String to send to the remote session.
         :type string: ``str``
         '''
-        self._block_write(self.channel.write,string)
+        if self.past_login==True:
+            self._block_write(self.channel.write,string)
 
     def sendline(self,send_string,newline=None):
         '''
@@ -240,66 +231,9 @@ class RedSSH(object):
         :param newline: Override the newline character sent to the remote session.
         :type newline: ``str``
         '''
-        self.current_send_string = send_string
         if newline==None:
             newline = self.newline
-        self.sendline_raw(send_string+newline)
-
-    def remote_text_clean(self,string,strip_ansi=True):
-        string = string.replace('\r','')
-        if strip_ansi==True:
-            string = re.sub(r'\x1b\[([0-9,A-Z]{1,2}(;[0-9]{1,2})?(;[0-9]{3})?)?[m|K]?','',string)
-        return(string)
-
-    def expect(self,re_strings='',default_match_prefix='',strip_ansi=True):
-        '''
-        This function takes in a regular expression (or regular expressions)
-        that represent the last line of output from the server. The function
-        waits for one or more of the terms to be matched. The regexes are
-        matched using expression ``r'\\n<regex>$'`` so you'll need to provide an
-        easygoing regex such as ``'.*server.*'`` if you wish to have a fuzzy
-        match.
-
-        This has been originally taken from paramiko_expect and modified to work with RedSSH.
-        I've also made the style consistent with the rest of the library.
-
-        :param re_strings: Either a regex string or list of regex strings
-                           that we should expect; if this is not specified,
-                           then ``EOF`` is expected (i.e. the shell is completely
-                           closed after the exit command is issued)
-        :param default_match_prefix: A prefix to all match regexes, defaults to ``''``.
-                                     Useful for making sure you have a prefix to match the start of a prompt.
-        :param strip_ansi: If ``True``, will strip ansi control chars befores regex matching.
-        :return: ``int`` - An ``EOF`` returns ``-1``, a regex metch returns ``0`` and a match in a
-                 list of regexes returns the index of the matched string in
-                 the list.
-        '''
-        self.current_output = ''
-
-        if isinstance(re_strings,str) and len(re_strings)!=0:
-            re_strings = [re_strings]
-
-        while (len(re_strings)==0 or not [re_string for re_string in re_strings if re.search(default_match_prefix+re_string,self.current_output,re.DOTALL)]):
-            for current_buffer in self._read_iter(self.channel.read,0.01):
-                current_buffer_decoded = self.remote_text_clean(current_buffer.decode(self.encoding),strip_ansi=strip_ansi)
-                self.current_output += current_buffer_decoded
-
-        if len(re_strings)!=0:
-            found_pattern = [(re_index,re_string) for (re_index,re_string) in enumerate(re_strings) if re.search(default_match_prefix+re_string,self.current_output,re.DOTALL)]
-
-        self.current_output_clean = self.current_output
-
-        if len(self.current_send_string)!=0:
-            self.current_output_clean = self.current_output_clean.replace(self.current_send_string+'\n','')
-        self.current_send_string = ''
-
-        if len(re_strings)!=0 and len(found_pattern)!=0:
-            self.current_output_clean = re.sub(found_pattern[0][1],'',self.current_output_clean)
-            self.last_match = found_pattern[0][1]
-            return(found_pattern[0][0])
-        else:
-            return(-1)
-
+        self.send(send_string+newline)
 
     def device_init(self,**kwargs):
         '''
@@ -307,80 +241,6 @@ class RedSSH(object):
         This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redssh.RedSSH.get_unique_prompt` to be overriden.
         '''
         pass
-
-    def get_unique_prompt(self):
-        '''
-        Return a unique prompt from the existing SSH session. Override this function to generate the compiled regex however you'd like, eg, from a database or from a hostname.
-
-        :returns: compiled ``rstring``
-        '''
-        return(re.escape(self.command('',clean_output=False)[1:])) # A smart-ish way to get the current prompt after a dumb prompt match
-
-    def set_unique_prompt(self,use_basic_prompt=True,set_prompt=False):
-        '''
-        Set a unique prompt in the existing SSH session.
-
-        :param use_basic_prompt: Use the dumb prompt from first login to the remote terminal.
-        :type use_basic_prompt: ``bool``
-        :param set_prompt: Set to ``True`` to set the prompt via :var:`redssh.RedSSH.PROMPT_SET_SH`
-        :type set_prompt: ``bool``
-        '''
-        if use_basic_prompt==True:
-            self.prompt_regex = self.basic_prompt
-        if set_prompt==True:
-            self.command(self.prompt_regex_SET_SH)
-        self.prompt_regex = self.get_unique_prompt()
-
-    def command(self,cmd,clean_output=True,remove_newline=False):
-        '''
-        Run a command in the remote terminal.
-
-        :param cmd: Command to execute, this will send characters exactly as if they were typed. (crtl+c could be sent via this).
-        :type cmd: ``str``
-        :param clean_output: Set to ``False`` to remove the "smart" cleaning, useful for debugging or for when you want the prompt as well.
-        :type clean_output: ``bool``
-        :param remove_newline: Set to ``True`` to remove the last newline on a return, useful when a command adds a newline to its output.
-        :type remove_newline: ``bool``
-
-        :returns: ``str``
-        '''
-        self.sendline(cmd)
-        self.prompt()
-        if clean_output==True:
-            out = self.current_output_clean
-        else:
-            out = self.current_output
-        if remove_newline==True:
-            if out.endswith('\n'):
-                out = out[:-1]
-        return(out)
-
-
-    def sudo(self,password,sudo=True,su_cmd='su -'):
-        '''
-        Sudo up or SU up or whatever up, into higher privileges.
-
-        :param password: Password for gaining privileges
-        :type password: ``str``
-        :param sudo: Set to ``False`` to allow ``su_cmd`` to be executed instead.
-        :type sudo: ``bool``
-        :param su_cmd: Command to be executed when ``sudo`` is ``False``, allows overriding of the ``'sudo'`` default.
-        :type su_cmd: ``str``
-        :return: ``None``
-        :raises: :class:`redssh.exceptions.BadSudoPassword` if the password provided does not allow for privilege escalation.
-        '''
-        cmd = su_cmd
-        reg = r'.+?asswor.+?\:\s+'
-        if sudo==True:
-            cmd = 'sudo '+su_cmd
-        self.sendline(cmd)
-        self.expect(reg)
-        self.sendline(password)
-        result = self.expect(re_strings=[self.basic_prompt,reg,r'Sorry.+?\.',r'.+?Authentication failure']) # Might be an idea to allow extra failure strings here to be more platform agnostic
-        if result==0:
-            self.set_unique_prompt()
-        else:
-            raise(exceptions.BadSudoPassword())
 
     def start_sftp(self):
         '''
