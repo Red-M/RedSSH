@@ -19,7 +19,6 @@ You can install via pip with `pip install redssh` or the latest commit which may
 
 
 # TO DO
-- Code clean
 - Unit tests
 - Examples
 - Better README.md
