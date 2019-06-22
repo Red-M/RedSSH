@@ -222,26 +222,6 @@ class RedSSH(object):
         if self.past_login==True:
             self._block_write(self.channel.write,string)
 
-    def sendline(self,send_string,newline=None):
-        '''
-        Saves and sends the send string provided to the remote session with a newline added.
-
-        :param send_string: String to send to the remote session.
-        :type send_string: ``str``
-        :param newline: Override the newline character sent to the remote session.
-        :type newline: ``str``
-        '''
-        if newline==None:
-            newline = self.newline
-        self.send(send_string+newline)
-
-    def device_init(self,**kwargs):
-        '''
-        Override this function to intialize a device that does not simply drop to the terminal or a device will kick you out if you send any key/character other than an "acceptable" one.
-        This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redssh.RedSSH.get_unique_prompt` to be overriden.
-        '''
-        pass
-
     def start_sftp(self):
         '''
         Start the SFTP client.

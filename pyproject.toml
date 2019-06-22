@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "RedSSH"
-version = "1.0.0"
+version = "1.3.0"
 description = "SSH automation for easy of use and all the extra options"
 
 license = "Linux GPLv2"

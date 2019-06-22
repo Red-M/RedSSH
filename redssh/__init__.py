@@ -23,7 +23,7 @@
 
 
 '''
-VERSION = '1.2.5'
+VERSION = '1.3.0'
 
 from redssh.redssh import RedSSH
 from redssh.redssh import exceptions
