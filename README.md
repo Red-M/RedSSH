@@ -2,9 +2,6 @@
 
 Use SSH in python easily and with C speed!
 
-This is in beta for now, however I wouldn't release something that didn't work properly.
-Things might just change unexpectedly.
-
 
 # Installing
 

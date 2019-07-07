@@ -99,7 +99,7 @@ class RedSSH(object):
                 self._block_select(timeout)
                 (size,data) = func()
             if timeout is not None and size==LIBSSH2_ERROR_EAGAIN:
-                raise(StopIteration)
+                return(b'')
             while size>0:
                 while pos<size:
                     if remainder_len>0:
