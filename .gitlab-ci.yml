@@ -4,7 +4,7 @@ pages:
     - apt update
     - apt install \-y make curl wget python3
     - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
-    - python3 ./get-pip.py
+    - python3 ./get-pip.py --user
     - pip install -e ./[docs]
     - cd ./docs
     - mkdir builds
