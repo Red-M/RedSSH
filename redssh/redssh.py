@@ -199,6 +199,14 @@ class RedSSH(object):
             self.past_login = True
             self.device_init()
 
+    def device_init(self,**kwargs):
+        '''
+        Override this function to intialize a device that does not simply drop to the terminal or a device will kick you out if you send any key/character other than an "acceptable" one.
+        This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redexpect.RedExpect.get_unique_prompt` to be overriden.
+        '''
+        pass
+
+
     def read(self,wait_time=0.01):
         '''
         Recieve data from the remote session.
