@@ -50,7 +50,7 @@ class RedSSH(object):
     :param ssh_wait_time_window: Set the wait time between trying to retreive data from the remote server, changing this from the default value of ``0.01`` will turn off the auto detection method that is done at the time of the initial SSH handshake. Additionally this needs to be slightly larger than the ping time between the client and the server otherwise you will run into problems with the returned data.
     :type ssh_wait_time_window: ``float``
     '''
-    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=0.01):
+    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=None):
         self.debug = False
         self.encoding = encoding
         self.tunnels = {'local':{},'remote':{}}
@@ -174,8 +174,9 @@ class RedSSH(object):
             self.session = ssh2_session()
             ping_timer = time.time()
             self.session.handshake(self.sock)
-            if self.ssh_wait_time_window==0.01:
-                self.ssh_wait_time_window = float(time.time()-ping_timer)/4.5 # find out how much wait time is required from the initial connection, only if this hasn't been set by the user.
+            ping_timer = float(time.time()-ping_timer)/4.5
+            if self.ssh_wait_time_window==None:
+                self.ssh_wait_time_window = ping_timer # find out how much wait time is required from the initial connection, only if this hasn't been set by the user.
             # print(self.ssh_wait_time_window)
 
             # self.check_host_key(hostname,port)
