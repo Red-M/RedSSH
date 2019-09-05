@@ -18,6 +18,7 @@
 
 import os
 import re
+import time # not for the reasons you think...
 import threading
 import multiprocessing
 import socket
@@ -46,13 +47,16 @@ class RedSSH(object):
     :type encoding: ``str``
     :param terminal: Set the terminal sent to the remote server to something other than the default of ``'vt100'``.
     :type terminal: ``str``
+    :param ssh_wait_time_window: Set the wait time between trying to retreive data from the remote server, changing this from the default value of ``0.01`` will turn off the auto detection method that is done at the time of the initial SSH handshake. Additionally this needs to be slightly larger than the ping time between the client and the server otherwise you will run into problems with the returned data.
+    :type ssh_wait_time_window: ``float``
     '''
-    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None):
+    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=0.01):
         self.debug = False
         self.encoding = encoding
         self.tunnels = {'local':{},'remote':{}}
         self.terminal = terminal
         self.start_scp = self.start_sftp
+        self.ssh_wait_time_window = ssh_wait_time_window
         if known_hosts==None:
             self.known_hosts_path = os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')
         else:
@@ -168,7 +172,11 @@ class RedSSH(object):
             else:
                 self.sock = sock
             self.session = ssh2_session()
+            ping_timer = time.time()
             self.session.handshake(self.sock)
+            if self.ssh_wait_time_window==0.01:
+                self.ssh_wait_time_window = float(time.time()-ping_timer)/4.5 # find out how much wait time is required from the initial connection, only if this hasn't been set by the user.
+            # print(self.ssh_wait_time_window)
 
             # self.check_host_key(hostname,port)
 
@@ -207,7 +215,7 @@ class RedSSH(object):
         pass
 
 
-    def read(self,wait_time=0.01):
+    def read(self,wait_time=None):
         '''
         Recieve data from the remote session.
         Only works if the current session has made it past the login process.
@@ -216,6 +224,8 @@ class RedSSH(object):
         :type wait_time: ``float``
         :return: ``generator`` - A generator of byte strings that has been recieved in the time given.
         '''
+        if wait_time==None:
+            wait_time = self.ssh_wait_time_window
         if self.past_login==True:
             return(self._read_iter(self.channel.read,wait_time))
 
