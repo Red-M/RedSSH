@@ -1,6 +1,7 @@
 import unittest
 import threading
 import multiprocessing
+import requests
 import paramiko
 import redssh
 
@@ -43,10 +44,13 @@ class RedSSHUnitTest(unittest.TestCase):
         self.sshs.rs.exit()
 
 
-    def test_basic_read_write(self):
+    def test_basic_tunnel_read_write(self):
         self.session_lock.acquire()
         self.sshs.wait_for('Command: ')
-        self.sshs.sendline('reply')
+        self.sshs.sendline('tunnel_test')
+        # self.sshs.rs.forward_tunnel(2727,'google.com',80)
+        # self.sshs.wait_for('Command: ')
+        # print(requests.get('http://localhost:2727'))
         self.session_lock.release()
 
 

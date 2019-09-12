@@ -136,8 +136,8 @@ class RedSSH(object):
             if hk.name==hostname:
                 print(self.known_hosts.writeline(hk))
 
-    def connect(self,hostname,port=22,username=None,password=None,pkey=None,key_filename=None,timeout=None,
-        allow_agent=True,look_for_keys=True,passphrase=None,sock=None):
+    def connect(self,hostname,port=22,username=None,password=None,key_filepath=None,timeout=None,
+        allow_agent=True,look_for_keys=True,passphrase='',sock=None):
         '''
         .. warning::
             Some authentication methods are not yet supported!
@@ -152,10 +152,8 @@ class RedSSH(object):
         :type password: ``str``
         :param allow_agent: Allow the local SSH key agent to offer the keys held in it for authentication.
         :type allow_agent: ``bool``
-        :param pkey: Private key to offer to the remote server for authentication. NOT IMPLEMENTED!
-        :type pkey: ``str``
-        :param key_filename: Array of filenames to offer to the remote server. NOT IMPLEMENTED!
-        :type key_filename: ``array``
+        :param key_filepath: Array of filenames to offer to the remote server. Can be a string
+        :type key_filepath: ``array``
         :param passphrase: Passphrase to decrypt any keys offered to the remote server. NOT IMPLEMENTED!
         :type passphrase: ``str``
         :param look_for_keys: Enable offering keys in ``~/.ssh`` automatically. NOT IMPLEMENTED!
@@ -172,6 +170,7 @@ class RedSSH(object):
             else:
                 self.sock = sock
             self.session = ssh2_session()
+            # self.session.publickey_init()
             ping_timer = time.time()
             self.session.handshake(self.sock)
             ping_timer = float(time.time()-ping_timer)/4.5
@@ -186,18 +185,22 @@ class RedSSH(object):
                 if allow_agent==True and auth_request=='publickey':
                     if allow_agent==True:
                         self.session.agent_auth(username)
-                        # agent = self.session.agent_init()
-                        # agent.connect()
-                    elif not pkey==None:
-                        pass
-                    elif key_filename!=None:
-                        pass
-                    # self.session.userauth_publickey(username,pkey)
+                    # elif not pkey==None:
+                        # self.session.userauth_publickey(username,pkey)
+                    elif key_filepath!=None:
+                        if isinstance(key_filepath,type(''))==True:
+                            key_filepath = [key_filepath]
+                        if isinstance(key_filepath,type([]))==True:
+                            if passphrase==None:
+                                passphrase = ''
+                            for private_key in key_filepath:
+                                self.session.userauth_publickey_fromfile(username,private_key,passphrase)
                     # self.session.userauth_hostbased_fromfile(username,pkey,hostname,passphrase=passphrase)
-                    # self.session.userauth_publickey_fromfile(username,pkey,passphrase)
-                    # self.session.userauth_publickey_frommemory(username,pkey,passphrase)
-                if not password==None and (auth_request=='password' or auth_request=='keyboard-interactive'):
-                    self.session.userauth_password(username,password)
+                if not password==None:
+                    if auth_request=='password':
+                        self.session.userauth_password(username,password)
+                    if auth_request=='keyboard-interactive':
+                        self.session.userauth_keyboardinteractive(username,password)
                 if self.session.userauth_authenticated()==True:
                     break
 
@@ -207,6 +210,7 @@ class RedSSH(object):
             self._block(self.channel.shell)
             self.past_login = True
             self.device_init()
+
 
     def device_init(self,**kwargs):
         '''
