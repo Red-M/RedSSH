@@ -32,6 +32,7 @@ from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_READ,LIBSS
 
 
 from redssh import exceptions
+from redssh import enums
 from redssh import tunnelling
 
 
@@ -49,14 +50,18 @@ class RedSSH(object):
     :type terminal: ``str``
     :param ssh_wait_time_window: Set the wait time between trying to retreive data from the remote server, changing this from the default value of ``0.01`` will turn off the auto detection method that is done at the time of the initial SSH handshake. Additionally this needs to be slightly larger than the ping time between the client and the server otherwise you will run into problems with the returned data.
     :type ssh_wait_time_window: ``float``
+    :param ssh_host_key_verification: Change the behaviour of remote host key verification. Can be set to one of the following values, ``strict``, ``warn``, ``auto_add`` or ``none``.
+    :type ssh_host_key_verification: :class:`redssh.enums.SSHHostKeyVerify`
     '''
-    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=None):
+    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=None,
+        ssh_host_key_verification=enums.SSHHostKeyVerify.warn):
         self.debug = False
         self.encoding = encoding
         self.tunnels = {'local':{},'remote':{}}
         self.terminal = terminal
         self.start_scp = self.start_sftp
         self.ssh_wait_time_window = ssh_wait_time_window
+        self.ssh_host_key_verification = ssh_host_key_verification
         if known_hosts==None:
             self.known_hosts_path = os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')
         else:
@@ -115,7 +120,7 @@ class RedSSH(object):
                     pos = size
                 (size,data) = func()
                 pos = 0
-        if remainder_len > 0:
+        if remainder_len>0:
             yield(remainder)
 
     def check_host_key(self,hostname,port):
@@ -130,11 +135,12 @@ class RedSSH(object):
         else:
             server_key_type = LIBSSH2_KNOWNHOST_KEY_SSHDSS
         key_bitmask = LIBSSH2_KNOWNHOST_TYPE_PLAIN|LIBSSH2_KNOWNHOST_KEYENC_RAW|server_key_type
-        self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
-        self.known_hosts.addc(hostname,host_key,key_bitmask)
-        for hk in self.known_hosts.get():
-            if hk.name==hostname:
-                print(self.known_hosts.writeline(hk))
+        if self.ssh_host_key_verification==enums.SSHHostKeyVerify.strict:
+            self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
+            self.known_hosts.addc(hostname,host_key,key_bitmask)
+            for hk in self.known_hosts.get():
+                if hk.name==hostname:
+                    print(self.known_hosts.writeline(hk))
 
     def connect(self,hostname,port=22,username=None,password=None,key_filepath=None,timeout=None,
         allow_agent=True,look_for_keys=True,passphrase='',sock=None):
@@ -178,7 +184,7 @@ class RedSSH(object):
                 self.ssh_wait_time_window = ping_timer # find out how much wait time is required from the initial connection, only if this hasn't been set by the user.
             # print(self.ssh_wait_time_window)
 
-            # self.check_host_key(hostname,port)
+            self.check_host_key(hostname,port)
 
             auth_requests = self.session.userauth_list(username)
             for auth_request in auth_requests:
@@ -200,7 +206,8 @@ class RedSSH(object):
                     if auth_request=='password':
                         self.session.userauth_password(username,password)
                     if auth_request=='keyboard-interactive':
-                        self.session.userauth_keyboardinteractive(username,password)
+                        pass # not implemented in ssh2-python 0.18.0
+                        # self.session.userauth_keyboardinteractive(username,password)
                 if self.session.userauth_authenticated()==True:
                     break
 
@@ -252,6 +259,40 @@ class RedSSH(object):
         if not self.__check_for_attr__('sftp_client'):
             self.sftp_client = self._block(self.session.sftp_init)
 
+    def sftp_mkdir(self,remote_path,dir_mode):
+        '''
+        Makes a directory using SFTP on the remote server.
+
+        .. warning::
+            This will only create directories with the user you logged in as, not the current user you are running commands as.
+
+        :param remote_path: Path the directory is going to be made at on the remote server.
+        :type remote_path: ``str``
+        :param dir_mode: File mode for the directory being created.
+        :type dir_mode: ``int``
+        :return: ``None``
+        '''
+        if self.__check_for_attr__('sftp_client'):
+            self._block(self.sftp_client.mkdir,remote_path,dir_mode)
+
+    def sftp_list_dir(self,remote_path):
+        '''
+        Open a file object over SFTP on the remote server.
+
+        .. warning::
+            This will only open files with the user you logged in as, not the current user you are running commands as.
+
+        :param remote_path: Path that file is located at on the remote server.
+        :type remote_path: ``str``
+        :param sftp_flags: Flags for the SFTP session to understand what you are going to do with the file.
+        :type sftp_flags: ``int``
+        :param file_mode: File mode for the file being opened.
+        :type file_mode: ``int``
+        :return: `ssh2.sftp.SFTPHandle`
+        '''
+        if self.__check_for_attr__('sftp_client'):
+            return(self._block(self.sftp_client.opendir,remote_path))
+
     def sftp_open(self,remote_path,sftp_flags,file_mode):
         '''
         Open a file object over SFTP on the remote server.
@@ -259,13 +300,13 @@ class RedSSH(object):
         .. warning::
             This will only open files with the user you logged in as, not the current user you are running commands as.
 
-        :param remote_path: Path that file is lcoated at on the remote server.
+        :param remote_path: Path that file is located at on the remote server.
         :type remote_path: ``str``
         :param sftp_flags: Flags for the SFTP session to understand what you are going to do with the file.
         :type sftp_flags: ``int``
         :param file_mode: File mode for the file being opened.
         :type file_mode: ``int``
-        :return: ``SFTPFileObj``
+        :return: `ssh2.sftp.SFTPHandle`
         '''
         if self.__check_for_attr__('sftp_client'):
             return(self._block(self.sftp_client.open,remote_path,sftp_flags,file_mode))
@@ -277,8 +318,8 @@ class RedSSH(object):
         .. warning::
             This will only write files with the user you logged in as, not the current user you are running commands as.
 
-        :param file_obj: SFTPFileObj to interact with.
-        :type file_obj: ``SFTPFileObj``
+        :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
         :param data_bytes: Bytes to write to the file with.
         :type data_bytes: ``byte str``
         :return: ``None``
@@ -293,8 +334,8 @@ class RedSSH(object):
         .. warning::
             This will only read files with the user you logged in as, not the current user you are running commands as.
 
-        :param file_obj: SFTPFileObj to interact with.
-        :type file_obj: ``SFTPFileObj``
+        :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
         :param iter: Flag for if you want the iterable object instead of just a byte string returned.
         :type iter: ``bool``
         :return: ``byte str`` or ``iter``
@@ -316,12 +357,12 @@ class RedSSH(object):
         .. warning::
             This will only close files with the user you logged in as, not the current user you are running commands as.
 
-        :param file_obj: SFTPFileObj to interact with.
-        :type file_obj: ``SFTPFileObj``
+        :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
         :return: ``None``
         '''
         if self.__check_for_attr__('sftp_client'):
-            self._block(file_obj.fsync)
+            # self._block(file_obj.fsync)
             self._block(file_obj.close)
 
     def put_folder(self,local_path,remote_path,recursive=False):
@@ -344,11 +385,8 @@ class RedSSH(object):
                 for dirname in dirnames:
                     local_dir_path = os.path.join(local_path,dirname)
                     remote_dir_path = os.path.join(remote_path,dirname)
-                    if not dirname in self._block(self.sftp_client.opendir,remote_path).readdir():
-                        try:
-                            self._block(self.sftp_client.mkdir,remote_dir_path,os.stat(local_dir_path).st_mode)
-                        except Exception as e:
-                            pass
+                    if not dirname in self.sftp_list_dir(remote_path).readdir():
+                        self.sftp_mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
                     if recursive==True:
                         self.put_folder(local_dir_path,remote_dir_path,recursive=recursive)
                 for filename in filenames:
@@ -373,9 +411,9 @@ class RedSSH(object):
         :type remote_path: ``str``
         '''
         if self.__check_for_attr__('sftp_client'):
-            f = self._block(self.sftp_client.open,remote_path,LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
-            self._block_write(f.write,open(local_path,'rb').read())
-            self._block(f.close)
+            f = self.sftp_open(remote_path,LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
+            self.sftp_write(f,open(local_path,'rb').read())
+            self.sftp_close(f)
 
 
     def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):

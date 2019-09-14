@@ -1,11 +1,12 @@
+import socket
 import unittest
 import threading
 import multiprocessing
 import requests
-import paramiko
 import redssh
+import time
 
-from . import paramiko_server
+from . import asyncssh_server
 
 
 class SSHSession(object):
@@ -30,28 +31,42 @@ class SSHSession(object):
 class RedSSHUnitTest(unittest.TestCase):
 
     def setUp(self):
-        self.session_lock = multiprocessing.Lock()
         self.q = multiprocessing.Queue()
-        self.paramiko_server = threading.Thread(target=paramiko_server.start_server,args=(self.q,))
-        self.paramiko_server.start()
-        self.sshs = SSHSession(self.q.get())
+        self.server = multiprocessing.Process(target=asyncssh_server.start_server,args=(self.q,))
+        self.server.start()
+        time.sleep(0.5)
+        self.server_port = self.q.get()
+        self.ssh_sessions = []
+
+    def start_ssh_session(self):
+        sshs = SSHSession(self.server_port)
+        self.ssh_sessions.append(sshs)
+        return(sshs)
+
+    def end_ssh_session(self,sshs):
+        sshs.sendline('exit')
+        sshs.wait_for('TEST')
+        sshs.rs.exit()
 
     def tearDown(self):
-        self.session_lock.acquire()
-        self.sshs.wait_for('Command: ')
-        self.sshs.sendline('exit')
-        self.sshs.wait_for('TEST')
-        self.sshs.rs.exit()
+        for session in self.ssh_sessions:
+            self.end_ssh_session(session)
+        self.server.kill()
 
 
     def test_basic_tunnel_read_write(self):
-        self.session_lock.acquire()
-        self.sshs.wait_for('Command: ')
-        self.sshs.sendline('tunnel_test')
-        # self.sshs.rs.forward_tunnel(2727,'google.com',80)
-        # self.sshs.wait_for('Command: ')
-        # print(requests.get('http://localhost:2727'))
-        self.session_lock.release()
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('tunnel_test')
+        port = 2727
+        sshs.rs.forward_tunnel(port,'localhost',port) # This is due to the test server implementation.
+        sshs.wait_for('Command$ ')
+        sock = socket.create_connection(('localhost',port),1)
+        sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
+        test_string = b'thisisatest'
+        sock.send(test_string)
+        result = sock.recv(1024)
+        assert result==test_string
 
 
 if __name__ == '__main__':

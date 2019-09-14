@@ -30,73 +30,102 @@ import traceback
 
 import paramiko
 from paramiko.py3compat import b, u, decodebytes
+from sftpserver.stub_sftp import StubServer, StubSFTPServer
+
+StubSFTPServer.ROOT = '/tmp'
 
 server_port = 0 # pick one for me!
+server_prompt = '$'
+line_endings = '\r\n'
 
-class Server(paramiko.ServerInterface):
+class Server(StubServer):
     def __init__(self):
         self.pkey = paramiko.RSAKey.generate(bits=1024, progress_func=None)
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
-            return paramiko.OPEN_SUCCEEDED
-        return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+            return(paramiko.OPEN_SUCCEEDED)
+        return(paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED)
+
+    def check_port_forward_request(self, address, port):
+        print((address, port))
+        return(port)
 
     def check_auth_password(self, username, password):
         if (username == 'redm') and (password == 'foobar!'):
-            return paramiko.AUTH_SUCCESSFUL
-        return paramiko.AUTH_FAILED
+            return(paramiko.AUTH_SUCCESSFUL)
+        return(paramiko.AUTH_FAILED)
 
     def check_auth_publickey(self, username, key):
         print('Auth attempt with key: ' + u(hexlify(key.get_fingerprint())))
         if (username == 'robey') and (key == self.pkey):
-            return paramiko.AUTH_SUCCESSFUL
-        return paramiko.AUTH_FAILED
+            return(paramiko.AUTH_SUCCESSFUL)
+        return(paramiko.AUTH_FAILED)
 
     def check_auth_gssapi_with_mic(self, username, gss_authenticated=paramiko.AUTH_FAILED, cc_file=None):
         if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
             return paramiko.AUTH_SUCCESSFUL
-        return paramiko.AUTH_FAILED
+        return(paramiko.AUTH_FAILED)
 
     def check_auth_gssapi_keyex(self, username, gss_authenticated=paramiko.AUTH_FAILED, cc_file=None):
         if gss_authenticated == paramiko.AUTH_SUCCESSFUL:
-            return paramiko.AUTH_SUCCESSFUL
-        return paramiko.AUTH_FAILED
+            return(paramiko.AUTH_SUCCESSFUL)
+        return(paramiko.AUTH_FAILED)
 
     def enable_auth_gssapi(self):
-        return True
+        return(True)
 
     def get_allowed_auths(self, username):
-        return 'gssapi-keyex,gssapi-with-mic,password,publickey'
+        return('gssapi-keyex,gssapi-with-mic,password,publickey')
 
     def check_channel_shell_request(self, channel):
         self.event.set()
-        return True
+        return(True)
 
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
-        return True
+        return(True)
 
 class Commands(object):
     def __init__(self, chan):
+        global server_port,server_prompt
         self.chan = chan
+        self.server_prompt = server_prompt
+
+    def send(self, line):
+        self.chan.send(line+line_endings)
 
     def tunnel_test(self, line):
         time.sleep(5)
         self.chan.close()
 
-    def send(self, line):
-        self.chan.send(line+'\r\n')
-
     def cmd_reply(self):
         self.send('PONG!')
 
+    def cmd_sudo(self):
+        self.chan.send('[sudo] password for lowly_pleb: ')
+        f = self.chan.makefile('rU')
+        received_passwd = f.readline().strip('\r\n')
+        self.send('')
+        if received_passwd=='bar':
+            self.server_prompt = '#'
+        else:
+            self.send('Sorry, try again.')
+
+    def cmd_sudo_custom_sudo(self):
+        self.cmd_sudo()
+
+    def cmd_whoami(self):
+        whoswho = {'$':'lowly_pleb','#':'root'}
+        self.send(whoswho[self.server_prompt])
+
     def cmd_exit(self):
-        self.chan.send('END OF TEST')
+        self.send('END OF TEST')
         self.chan.close()
 
+
 def start_server(queue):
-    global server_port
+    global server_port,server_prompt
     DoGSSAPIKeyExchange = False
 
     try:
@@ -122,6 +151,8 @@ def start_server(queue):
 
     try:
         t = paramiko.Transport(client, gss_kex=DoGSSAPIKeyExchange)
+
+        t.set_subsystem_handler('sftp', paramiko.SFTPServer, StubSFTPServer)
         t.set_gss_host(socket.getfqdn(''))
         try:
             t.load_server_moduli()
@@ -149,13 +180,14 @@ def start_server(queue):
             sys.exit(1)
 
         commands = Commands(chan)
-        chan.send('MOTD\r\n')
+        chan.send('MOTD'+line_endings)
         command = ''
         while not command=='cmd_exit':
-            chan.send('Command: ')
+            chan.send(line_endings+'Command'+server_prompt+' ')
             f = chan.makefile('rU')
-            command = 'cmd_'+f.readline().strip('\r\n')
-            chan.send('\r\n')
+            command = 'cmd_'+f.readline().strip('\r\n').replace(' ','_')
+            print('Got: '+command)
+            # chan.send(line_endings)
             if command in dir(commands):
                 func = getattr(commands,command)
                 func()

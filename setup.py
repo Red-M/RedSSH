@@ -34,7 +34,9 @@ doc_deps = [
 ]
 
 test_deps = [
+    'asyncssh',
     'paramiko',
+    'sftpserver',
     'coveralls',
     'pytest-cov'
 ]

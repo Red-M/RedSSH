@@ -102,7 +102,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
                     break
                 self.caller._block_write(chan.write,data)
             if self.caller.sock in r:
-                for buf in self.caller._read_iter(chan.read,0.01):
+                for buf in self.caller._read_iter(chan.read,self.caller.ssh_wait_time_window):
                     self.request.send(buf)
 
         if not chan.eof():
@@ -140,7 +140,7 @@ def reverse_handler(self,listener,host,port,local_port,queue):
             self._block_write(chan.write,data)
         if self.sock in r:
             print('sock')
-            for buf in self._read_iter(chan.read,0.01):
+            for buf in self._read_iter(chan.read,self.caller.ssh_wait_time_window):
                 request.send(buf)
     if not chan.eof():
         self._block(chan.close)
