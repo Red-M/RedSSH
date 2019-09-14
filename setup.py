@@ -28,7 +28,6 @@ deps = [
 ]
 
 doc_deps = [
-    'paramiko',
     'sphinx',
     'sphinx_rtd_theme'
 ]
