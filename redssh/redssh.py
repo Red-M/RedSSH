@@ -125,7 +125,8 @@ class RedSSH(object):
 
     def check_host_key(self,hostname,port):
         self.known_hosts = self.session.knownhost_init()
-        self.known_hosts.readfile(self.known_hosts_path)
+        if os.path.exists(self.known_hosts_path)==True:
+            self.known_hosts.readfile(self.known_hosts_path)
         (host_key,host_key_type) = self.session.hostkey()
 
         if isinstance(hostname,type('')):
