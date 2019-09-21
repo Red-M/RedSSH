@@ -23,21 +23,16 @@ import threading
 import multiprocessing
 import socket
 import select
-from ssh2.session import Session as ssh2_session
-from ssh2.session import LIBSSH2_HOSTKEY_HASH_SHA1,LIBSSH2_HOSTKEY_TYPE_RSA
-from ssh2.knownhost import LIBSSH2_KNOWNHOST_TYPE_PLAIN,LIBSSH2_KNOWNHOST_KEYENC_RAW,LIBSSH2_KNOWNHOST_KEY_SSHRSA,LIBSSH2_KNOWNHOST_KEY_SSHDSS
-from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND
-from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
-from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_READ,LIBSSH2_FXF_CREAT,LIBSSH2_SFTP_S_IRUSR,LIBSSH2_SFTP_S_IWUSR,LIBSSH2_SFTP_S_IRGRP,LIBSSH2_SFTP_S_IWGRP,LIBSSH2_SFTP_S_IROTH
 
 
+from redssh import libssh2
 from redssh import exceptions
 from redssh import enums
 from redssh import tunnelling
 
 
-DEFAULT_WRITE_MODE = LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC
-DEFAULT_FILE_MODE = LIBSSH2_SFTP_S_IRUSR | LIBSSH2_SFTP_S_IWUSR | LIBSSH2_SFTP_S_IRGRP | LIBSSH2_SFTP_S_IWGRP | LIBSSH2_SFTP_S_IROTH
+DEFAULT_WRITE_MODE = libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC
+DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR | libssh2.LIBSSH2_SFTP_S_IRGRP | libssh2.LIBSSH2_SFTP_S_IWGRP | libssh2.LIBSSH2_SFTP_S_IROTH
 
 class RedSSH(object):
     '''
@@ -52,9 +47,11 @@ class RedSSH(object):
     :type ssh_wait_time_window: ``float``
     :param ssh_host_key_verification: Change the behaviour of remote host key verification. Can be set to one of the following values, ``strict``, ``warn``, ``auto_add`` or ``none``.
     :type ssh_host_key_verification: :class:`redssh.enums.SSHHostKeyVerify`
+    :param ssh_keepalive_interval: Enable or disable SSH keepalive packets, value is interval in seconds.
+    :type ssh_keepalive_interval: ``float``
     '''
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=None,
-        ssh_host_key_verification=enums.SSHHostKeyVerify.warn):
+        ssh_host_key_verification=enums.SSHHostKeyVerify.warn,ssh_keepalive_interval=0.0):
         self.debug = False
         self.encoding = encoding
         self.tunnels = {'local':{},'remote':{}}
@@ -62,6 +59,10 @@ class RedSSH(object):
         self.start_scp = self.start_sftp
         self.ssh_wait_time_window = ssh_wait_time_window
         self.ssh_host_key_verification = ssh_host_key_verification
+        self.ssh_keepalive_interval = ssh_keepalive_interval
+        self._ssh_keepalive_thread = None
+        self._ssh_keepalive_event = None
+        # self.__internal_lock__ = multiprocessing.Lock() # Just commenting this causes a segfault on python exit????
         if known_hosts==None:
             self.known_hosts_path = os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')
         else:
@@ -70,23 +71,42 @@ class RedSSH(object):
     def __check_for_attr__(self,attr):
         return(attr in self.__dict__)
 
+    def __shutdown_thread__(self,thread,queue):
+        if isinstance(queue,threading.Event):
+            queue.set()
+        else:
+            queue.put('terminate')
+        if thread.is_alive():
+            thread.join()
+
+    def ssh_keepalive(self):
+        timeout = 0.01
+        while self.__check_for_attr__('channel')==False:
+            time.sleep(timeout)
+        while self._ssh_keepalive_event.is_set()==False and self.__check_for_attr__('channel')==True:
+            timeout = self._block(self.session.keepalive_send)
+            self._ssh_keepalive_event.wait(timeout=timeout)
+
+
     def _block_select(self,timeout=None):
         block_direction = self.session.block_directions()
         if block_direction==0:
             return()
         rfds = []
         wfds = []
-        if block_direction & LIBSSH2_SESSION_BLOCK_INBOUND:
+        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
             rfds = [self.sock]
-        if block_direction & LIBSSH2_SESSION_BLOCK_OUTBOUND:
+        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
             wfds = [self.sock]
         select.select(rfds,wfds,[],timeout)
 
     def _block(self,func,*args,**kwargs):
         out = func(*args,**kwargs)
-        while out==LIBSSH2_ERROR_EAGAIN:
+        while out==libssh2.LIBSSH2_ERROR_EAGAIN:
+            # self.__internal_lock__.acquire()
             self._block_select()
             out = func(*args,**kwargs)
+            # self.__internal_lock__.release()
         return(out)
 
     def _block_write(self,func,data,timeout=None):
@@ -95,7 +115,7 @@ class RedSSH(object):
         while total_written<data_len:
             (rc,bytes_written) = func(data[total_written:])
             total_written+=bytes_written
-            if rc==LIBSSH2_ERROR_EAGAIN:
+            if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
                 self._block_select(timeout)
 
     def _read_iter(self,func,timeout=None):
@@ -103,11 +123,11 @@ class RedSSH(object):
         remainder_len = 0
         remainder = b''
         (size,data) = func()
-        while size==LIBSSH2_ERROR_EAGAIN or size>0:
-            if size==LIBSSH2_ERROR_EAGAIN:
+        while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
+            if size==libssh2.LIBSSH2_ERROR_EAGAIN:
                 self._block_select(timeout)
                 (size,data) = func()
-            if timeout is not None and size==LIBSSH2_ERROR_EAGAIN:
+            if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
                 return(b'')
             while size>0:
                 while pos<size:
@@ -131,11 +151,11 @@ class RedSSH(object):
 
         if isinstance(hostname,type('')):
             hostname = hostname.encode(self.encoding)
-        if host_key_type==LIBSSH2_HOSTKEY_TYPE_RSA:
-            server_key_type = LIBSSH2_KNOWNHOST_KEY_SSHRSA
+        if host_key_type==libssh2.LIBSSH2_HOSTKEY_TYPE_RSA:
+            server_key_type = libssh2.LIBSSH2_KNOWNHOST_KEY_SSHRSA
         else:
-            server_key_type = LIBSSH2_KNOWNHOST_KEY_SSHDSS
-        key_bitmask = LIBSSH2_KNOWNHOST_TYPE_PLAIN|LIBSSH2_KNOWNHOST_KEYENC_RAW|server_key_type
+            server_key_type = libssh2.LIBSSH2_KNOWNHOST_KEY_SSHDSS
+        key_bitmask = libssh2.LIBSSH2_KNOWNHOST_TYPE_PLAIN|libssh2.LIBSSH2_KNOWNHOST_KEYENC_RAW|server_key_type
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.strict:
             self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
             self.known_hosts.addc(hostname,host_key,key_bitmask)
@@ -143,8 +163,9 @@ class RedSSH(object):
                 if hk.name==hostname:
                     print(self.known_hosts.writeline(hk))
 
-    def connect(self,hostname,port=22,username=None,password=None,key_filepath=None,timeout=None,
-        allow_agent=True,look_for_keys=True,passphrase='',sock=None):
+    def connect(self,hostname,port=22,username=None,password=None,allow_agent=True,
+        #host_based=None,
+        key_filepath=None,passphrase=None,look_for_keys=True,sock=None,timeout=None):
         '''
         .. warning::
             Some authentication methods are not yet supported!
@@ -161,7 +182,7 @@ class RedSSH(object):
         :type allow_agent: ``bool``
         :param key_filepath: Array of filenames to offer to the remote server. Can be a string
         :type key_filepath: ``array``
-        :param passphrase: Passphrase to decrypt any keys offered to the remote server. NOT IMPLEMENTED!
+        :param passphrase: Passphrase to decrypt any keys offered to the remote server.
         :type passphrase: ``str``
         :param look_for_keys: Enable offering keys in ``~/.ssh`` automatically. NOT IMPLEMENTED!
         :type look_for_keys: ``bool``
@@ -176,7 +197,7 @@ class RedSSH(object):
                 self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
             else:
                 self.sock = sock
-            self.session = ssh2_session()
+            self.session = libssh2.session()
             # self.session.publickey_init()
             ping_timer = time.time()
             self.session.handshake(self.sock)
@@ -188,31 +209,71 @@ class RedSSH(object):
             self.check_host_key(hostname,port)
 
             auth_requests = self.session.userauth_list(username)
+            authenticated = False
+            auth_types_tried = []
             for auth_request in auth_requests:
-                if allow_agent==True and auth_request=='publickey':
+                if auth_request=='publickey':
                     if allow_agent==True:
-                        self.session.agent_auth(username)
-                    # elif not pkey==None:
-                        # self.session.userauth_publickey(username,pkey)
-                    elif key_filepath!=None:
+                        auth_types_tried.append('publickey')
+                        try:
+                            self.session.agent_auth(username)
+                            if self.session.userauth_authenticated()==True:
+                                authenticated = True
+                                break
+                        except:
+                            pass
+                    elif not key_filepath==None:
                         if isinstance(key_filepath,type(''))==True:
                             key_filepath = [key_filepath]
                         if isinstance(key_filepath,type([]))==True:
                             if passphrase==None:
                                 passphrase = ''
                             for private_key in key_filepath:
-                                self.session.userauth_publickey_fromfile(username,private_key,passphrase)
-                    # self.session.userauth_hostbased_fromfile(username,pkey,hostname,passphrase=passphrase)
+                                auth_types_tried.append('publickey')
+                                try:
+                                    self.session.userauth_publickey_fromfile(username,private_key,passphrase)
+                                    if self.session.userauth_authenticated()==True:
+                                        authenticated = True
+                                        break
+                                except:
+                                    pass
+                    # elif host_based==True:
+                        # auth_types_tried.append('hostbased')
+                        # try:
+                            # self.session.userauth_hostbased_fromfile(username,pkey,hostname,passphrase=passphrase)
+                            # if self.session.userauth_authenticated()==True:
+                                # authenticated = True
+                                # break
+                        # except:
+                            # pass
                 if not password==None:
                     if auth_request=='password':
-                        self.session.userauth_password(username,password)
+                        auth_types_tried.append('password')
+                        try:
+                            self.session.userauth_password(username,password)
+                            if self.session.userauth_authenticated()==True:
+                                authenticated = True
+                                break
+                        except:
+                            pass
                     if auth_request=='keyboard-interactive':
-                        pass # not implemented in ssh2-python 0.18.0
-                        # self.session.userauth_keyboardinteractive(username,password)
-                if self.session.userauth_authenticated()==True:
-                    break
+                        auth_types_tried.append('keyboard-interactive') # not implemented in ssh2-python 0.18.0
+                        try:
+                            self.session.userauth_keyboardinteractive(username,password)
+                            if self.session.userauth_authenticated()==True:
+                                authenticated = True
+                                break
+                        except:
+                            pass
+            if authenticated==False:
+                raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
 
             self.session.set_blocking(False)
+            if not self.ssh_keepalive_interval==0:
+                self.session.keepalive_config(False, self.ssh_keepalive_interval)
+                self._ssh_keepalive_thread = threading.Thread(target=self.ssh_keepalive)
+                self._ssh_keepalive_event = threading.Event()
+                self._ssh_keepalive_thread.start()
             self.channel = self._block(self.session.open_session)
             self._block(self.channel.pty,self.terminal)
             self._block(self.channel.shell)
@@ -311,6 +372,30 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('sftp_client'):
             return(self._block(self.sftp_client.open,remote_path,sftp_flags,file_mode))
+
+    def sftp_rewind(self,file_obj):
+        '''
+        Rewind a file object over SFTP to the beginning.
+
+        :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
+        :return: ``None``
+        '''
+        if self.__check_for_attr__('sftp_client'):
+            self._block(file_obj.rewind)
+
+    def sftp_seek(self,file_obj,offset):
+        '''
+        Seek to a certain location in a file object over SFTP.
+
+        :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
+        :param offset: What location to seek to in the file.
+        :type offset: ``int``
+        :return: ``None``
+        '''
+        if self.__check_for_attr__('sftp_client'):
+            self._block(file_obj.seek64,offset)
 
     def sftp_write(self,file_obj,data_bytes):
         '''
@@ -412,7 +497,7 @@ class RedSSH(object):
         :type remote_path: ``str``
         '''
         if self.__check_for_attr__('sftp_client'):
-            f = self.sftp_open(remote_path,LIBSSH2_FXF_WRITE|LIBSSH2_FXF_CREAT|LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
+            f = self.sftp_open(remote_path,libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
             self.sftp_write(f,open(local_path,'rb').read())
             self.sftp_close(f)
 
@@ -430,26 +515,26 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
-        :return: ``tuple`` of ``(tun_thread,thread_queue,tun_server)`` this is so you can control the tunnel's thread if you need to.
+        :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server)`` this is so you can control the tunnel's thread if you need to.
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['local']:
-            thread_queue = multiprocessing.Queue()
+            thread_terminate = threading.Event()
+            requested_chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,bind_addr,local_port)
 
             class SubHander(tunnelling.ForwardHandler):
                 caller = self
                 chain_host = remote_host
                 chain_port = remote_port
-                queue = thread_queue
-                src_tup = (bind_addr,local_port)
-                dst_tup = (remote_host,remote_port)
+                terminate = thread_terminate
+                chan = requested_chan
 
             tun_server = tunnelling.ForwardServer((bind_addr,local_port),SubHander)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
             tun_thread.name = option_string
             tun_thread.start()
-            self.tunnels['local'][option_string] = (tun_thread,thread_queue,tun_server)
+            self.tunnels['local'][option_string] = (tun_thread,thread_terminate,tun_server)
         return(self.tunnels['local'][option_string])
 
     def reverse_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
@@ -471,7 +556,7 @@ class RedSSH(object):
         return()
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
-            thread_queue = multiprocessing.Queue()
+            thread_queue = threading.Event()
             listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
             tun_thread = threading.Thread(target=tunnelling.reverse_handler,args=(self,listener,remote_host,remote_port,local_port,thread_queue))
             tun_thread.daemon = True
@@ -487,15 +572,10 @@ class RedSSH(object):
         '''
         for thread_type in self.tunnels:
             for option_string in self.tunnels[thread_type]:
-                try:
-                    (thread,queue,server) = self.tunnels[thread_type][option_string]
-                    queue.put('terminate')
-                    if not server==None:
-                        server.shutdown()
-                    if thread.is_alive():
-                        thread.join()
-                except Exception as e:
-                    pass
+                (thread,queue,server) = self.tunnels[thread_type][option_string]
+                if not server==None:
+                    server.shutdown()
+                self.__shutdown_thread__(thread,queue)
 
     def exit(self):
         '''
@@ -505,7 +585,9 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
                 self.close_tunnels()
+                if not self._ssh_keepalive_thread==None:
+                    self.__shutdown_thread__(self._ssh_keepalive_thread,self._ssh_keepalive_event)
                 self._block(self.channel.close)
                 self._block(self.session.disconnect)
                 self.sock.close()
-                del self.sock,self.session,self.channel,self.past_login
+                del self.sock,self.session,self.channel,self.past_login,self._ssh_keepalive_thread

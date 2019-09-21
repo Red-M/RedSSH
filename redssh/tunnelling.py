@@ -75,38 +75,22 @@ class ForwardServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
 
 class ForwardHandler(SocketServer.BaseRequestHandler):
     def handle(self):
-        itc = None
-        try:
-            itc = self.queue.get(False)
-        except Exception as e:
-            pass
-        if itc=='terminate':
-            return()
-        try:
-            chan = self.caller._block(self.caller.session.direct_tcpip_ex,self.dst_tup[0],self.dst_tup[1],self.src_tup[0],self.src_tup[1])
-        except Exception as e:
-            return()
-
         i = None
-        while True:
-            try:
-                itc = self.queue.get(False)
-            except Exception as e:
-                pass
-            if itc=='terminate' or chan.eof():
-                break
+        while self.terminate.is_set()==False or self.chan.eof()==True:
             (r,w,x) = select.select([self.request,self.caller.sock],[],[])
+            if self.terminate.is_set()==True or self.chan.eof()==True:
+                break
             if self.request in r:
                 data = self.request.recv(1024)
                 if len(data)==0:
                     break
-                self.caller._block_write(chan.write,data)
+                self.caller._block_write(self.chan.write,data)
             if self.caller.sock in r:
-                for buf in self.caller._read_iter(chan.read,self.caller.ssh_wait_time_window):
+                for buf in self.caller._read_iter(self.chan.read,self.caller.ssh_wait_time_window):
                     self.request.send(buf)
 
-        if not chan.eof():
-            self.caller._block(chan.close)
+        if not self.chan.eof():
+            self.caller._block(self.chan.close)
         self.request.close()
 
 

@@ -21,6 +21,7 @@
 import base64
 from binascii import hexlify
 import os
+import time
 import subprocess
 import socket
 import sys
@@ -37,16 +38,18 @@ StubSFTPServer.ROOT = '/tmp'
 server_port = 0 # pick one for me!
 server_prompt = '$'
 line_endings = '\r\n'
+tunnel_opened = False
 
 class Server(StubServer):
-    def __init__(self):
-        self.pkey = paramiko.RSAKey.generate(bits=1024, progress_func=None)
+    def __init__(self,transport):
+        self.transport = transport
+        self.pkey_path = os.path.join(os.path.join(os.getcwd(),'tests'),'ssh_host_key_paramiko')
+        self.pkey = paramiko.rsakey.RSAKey.from_private_key_file(self.pkey_path)
+        # self.pkey = paramiko.RSAKey.generate(bits=1024, progress_func=None)
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
-        if kind == 'session':
-            return(paramiko.OPEN_SUCCEEDED)
-        return(paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED)
+        return(paramiko.OPEN_SUCCEEDED)
 
     def check_port_forward_request(self, address, port):
         print((address, port))
@@ -59,7 +62,7 @@ class Server(StubServer):
 
     def check_auth_publickey(self, username, key):
         print('Auth attempt with key: ' + u(hexlify(key.get_fingerprint())))
-        if (username == 'robey') and (key == self.pkey):
+        if (username == 'redm') and u(hexlify(key.get_fingerprint()))==u(hexlify(self.pkey.get_fingerprint())):
             return(paramiko.AUTH_SUCCESSFUL)
         return(paramiko.AUTH_FAILED)
 
@@ -77,7 +80,7 @@ class Server(StubServer):
         return(True)
 
     def get_allowed_auths(self, username):
-        return('gssapi-keyex,gssapi-with-mic,password,publickey')
+        return('password,publickey,keyboard-interactive')
 
     def check_channel_shell_request(self, channel):
         self.event.set()
@@ -86,18 +89,65 @@ class Server(StubServer):
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
         return(True)
 
+    def check_channel_exec_request(self, channel, command):
+        if command != b"yes":
+            return False
+        return True
+
+    def check_global_request(self, kind, msg):
+        self._global_request = kind
+        # NOTE: for w/e reason, older impl of this returned False always, even
+        # tho that's only supposed to occur if the request cannot be served.
+        # For now, leaving that the default unless test supplies specific
+        # 'acceptable' request kind
+        return kind == "acceptable"
+
+    def check_channel_x11_request(
+        self,
+        channel,
+        single_connection,
+        auth_protocol,
+        auth_cookie,
+        screen_number,
+    ):
+        self._x11_single_connection = single_connection
+        self._x11_auth_protocol = auth_protocol
+        self._x11_auth_cookie = auth_cookie
+        self._x11_screen_number = screen_number
+        return True
+
+    def check_port_forward_request(self, addr, port):
+        self._listen = socket.socket()
+        self._listen.bind((addr, port))
+        self._listen.listen(1)
+        return(self._listen.getsockname()[1])
+
+    def cancel_port_forward_request(self, addr, port):
+        self._listen.close()
+        self._listen = None
+
+    def check_channel_direct_tcpip_request(self, chanid, origin, destination):
+        self._tcpip_options = (origin,destination)
+        return(paramiko.OPEN_SUCCEEDED)
+
 class Commands(object):
-    def __init__(self, chan):
+    def __init__(self, server, chan):
         global server_port,server_prompt
+        self.server = server
         self.chan = chan
         self.server_prompt = server_prompt
 
     def send(self, line):
         self.chan.send(line+line_endings)
 
-    def tunnel_test(self, line):
-        time.sleep(5)
-        self.chan.close()
+    def cmd_tunnel_test(self):
+        self.send('Tunneled')
+        sch = self.server.transport.accept(10)
+        (origin,destination) = self.server._tcpip_options
+        cch = socket.create_connection(destination,1)
+        cch.send(sch.recv(256))
+        sch.send(cch.recv(2048))
+        sch.close()
 
     def cmd_reply(self):
         self.send('PONG!')
@@ -159,7 +209,7 @@ def start_server(queue):
         except:
             print('(Failed to load moduli -- gex will be unsupported.)')
             raise
-        server = Server()
+        server = Server(t)
         t.add_server_key(server.pkey)
         try:
             t.start_server(server=server)
@@ -174,12 +224,13 @@ def start_server(queue):
             sys.exit(1)
         print('Authenticated!')
 
+
         server.event.wait(10)
         if not server.event.is_set():
             print('*** Client never asked for a shell.')
             sys.exit(1)
 
-        commands = Commands(chan)
+        commands = Commands(server,chan)
         chan.send('MOTD'+line_endings)
         command = ''
         while not command=='cmd_exit':
@@ -191,6 +242,7 @@ def start_server(queue):
             if command in dir(commands):
                 func = getattr(commands,command)
                 func()
+        time.sleep(1) # wait for death
 
     except Exception as e:
         print('*** Caught exception: ' + str(e.__class__) + ': ' + str(e))

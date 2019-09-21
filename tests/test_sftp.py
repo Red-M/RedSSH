@@ -1,4 +1,5 @@
 import os
+import time
 import socket
 import shutil
 import unittest
@@ -34,6 +35,7 @@ class RedSSHUnitTest(unittest.TestCase):
     def setUp(self):
         self.ssh_servers = []
         self.ssh_sessions = []
+        self.server_hostname = 'localhost'
         self.cur_dir = os.path.expanduser(os.path.dirname(__file__))
         test_dir = os.path.join('test_dir','sftp')
         self.remote_dir = test_dir
@@ -52,10 +54,9 @@ class RedSSHUnitTest(unittest.TestCase):
         return(server_port)
 
     def start_ssh_session(self,server_port=None,class_init={},connect_args={}):
-        server_hostname = 'localhost'
         if server_port==None:
             server_port = self.start_ssh_server()
-        sshs = SSHSession(server_hostname,server_port,class_init,connect_args)
+        sshs = SSHSession(self.server_hostname,server_port,class_init,connect_args)
         self.ssh_sessions.append(sshs)
         return(sshs)
 
@@ -80,10 +81,27 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('reply')
         sshs.rs.start_sftp()
 
-    def test_copy(self):
+    def test_copy_and_open(self):
         sshs = self.start_ssh_session()
         sshs.rs.start_sftp()
         sshs.rs.put_folder(self.cur_dir,self.remote_dir,True)
+
+    def test_file_operations_via_sftp(self):
+        sshs = self.start_ssh_session()
+        sshs.rs.start_sftp()
+        sshs.rs.put_folder(self.cur_dir,self.remote_dir,True)
+        path = os.path.join(self.remote_dir,'test_sftp.py')
+        sftp_f = sshs.rs.sftp_open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR)
+        assert b'THIS IS A TEST' in sshs.rs.sftp_read(sftp_f)
+        sshs.rs.sftp_seek(sftp_f,0)
+        file_data = b''
+        for data in sshs.rs.sftp_read(sftp_f,iter=True):
+            print(data)
+            file_data+=data
+        assert b'THIS IS A TEST' in file_data
+        sshs.rs.sftp_rewind(sftp_f) # Be kind and rewind! :)
+        sshs.rs.sftp_close(sftp_f)
+        shutil.rmtree(self.real_remote_dir)
 
 if __name__ == '__main__':
     unittest.main()

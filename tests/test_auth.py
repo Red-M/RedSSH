@@ -1,5 +1,4 @@
 import os
-import time
 import socket
 import unittest
 import threading
@@ -52,7 +51,6 @@ class RedSSHUnitTest(unittest.TestCase):
         return(server_port)
 
     def start_ssh_session(self,server_port=None,class_init={},connect_args={}):
-        server_hostname = 'localhost'
         if server_port==None:
             server_port = self.start_ssh_server()
         sshs = SSHSession(self.server_hostname,server_port,class_init,connect_args)
@@ -70,32 +68,34 @@ class RedSSHUnitTest(unittest.TestCase):
 
 
 
-    def test_basic_read_write(self):
-        sshs = self.start_ssh_session()
+    def test_agent_auth(self):
+        try:
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True}) # this currently doesn't work.
+            sshs.wait_for('Command$ ')
+            sshs.sendline('reply')
+        except redssh.exceptions.AuthenticationFailedException:
+            pass
+
+    def test_key_auth(self):
+        sshs = self.start_ssh_session(class_init={},connect_args={'password':None,'allow_agent':False,'key_filepath':self.key_path})
         sshs.wait_for('Command$ ')
         sshs.sendline('reply')
 
-    def test_known_hosts(self):
-        sshs = self.start_ssh_session(class_init={'known_hosts':os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')})
-        sshs.wait_for('Command$ ')
-        sshs.sendline('reply')
+    def test_bad_key_auth(self):
+        failed = False
+        try:
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':False,'key_filepath':self.bad_key_path})
+        except:
+            failed = True
+        assert(failed==True)
 
-    def test_bring_your_own_socket(self):
-        server_port = self.start_ssh_server()
-        sock = socket.create_connection(('localhost',server_port),1)
-        sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
-        sshs = self.start_ssh_session(server_port,class_init={},connect_args={'sock':sock})
-        sshs.wait_for('Command$ ')
-        sshs.sendline('reply')
-
-    def test_ssh_keepalive(self):
-        sshs = self.start_ssh_session(class_init={'ssh_keepalive_interval':1},connect_args={})
-        sshs.wait_for('Command$ ')
-        time.sleep(1)
-        sshs.sendline('reply')
-        sshs.wait_for('Command$ ')
-        sshs.sendline('reply')
-
+    def test_no_auth(self):
+        failed = False
+        try:
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':False})
+        except redssh.exceptions.AuthenticationFailedException:
+            failed = True
+        assert(failed==True)
 
 if __name__ == '__main__':
     unittest.main()
