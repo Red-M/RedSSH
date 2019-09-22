@@ -34,6 +34,7 @@ doc_deps = [
 
 test_deps = [
     'paramiko',
+    'sftpserver',
     'coveralls',
     'pytest-cov'
 ]
