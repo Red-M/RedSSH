@@ -37,7 +37,7 @@ class RedSSHUnitTest(unittest.TestCase):
         self.ssh_sessions = []
         self.server_hostname = 'localhost'
         self.cur_dir = os.path.expanduser(os.path.dirname(__file__))
-        test_dir = os.path.join('test_dir','sftp')
+        test_dir = os.path.join('test_dir','scp')
         self.remote_dir = test_dir
         self.real_remote_dir = os.path.sep+os.path.join('tmp',test_dir)
         try:
@@ -75,32 +75,32 @@ class RedSSHUnitTest(unittest.TestCase):
 
 
 
-    def test_open_sftp(self):
+    def test_open_scp(self):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('reply')
-        sshs.rs.start_sftp()
+        sshs.rs.start_scp()
 
     def test_copy_and_open(self):
         sshs = self.start_ssh_session()
-        sshs.rs.start_sftp()
-        sshs.rs.sftp.put_folder(self.cur_dir,self.remote_dir,True)
+        sshs.rs.start_scp()
+        sshs.rs.scp.put_folder(self.cur_dir,self.remote_dir,True)
 
-    def test_file_operations_via_sftp(self):
+    def test_file_operations_via_scp(self):
         sshs = self.start_ssh_session()
-        sshs.rs.start_sftp()
-        sshs.rs.sftp.put_folder(self.cur_dir,self.remote_dir,True)
-        path = os.path.join(self.remote_dir,'test_sftp.py')
-        sftp_f = sshs.rs.sftp.open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR)
-        assert b'THIS IS A TEST' in sshs.rs.sftp.read(sftp_f)
-        sshs.rs.sftp.seek(sftp_f,0)
+        sshs.rs.start_scp()
+        sshs.rs.scp.put_folder(self.cur_dir,self.remote_dir,True)
+        path = os.path.join(self.remote_dir,'test_scp.py')
+        scp_f = sshs.rs.scp.open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_scp_S_IRUSR)
+        assert b'THIS IS A TEST' in sshs.rs.scp.read(scp_f)
+        sshs.rs.scp.seek(scp_f,0)
         file_data = b''
-        for data in sshs.rs.sftp.read(sftp_f,iter=True):
+        for data in sshs.rs.scp.read(scp_f,iter=True):
             print(data)
             file_data+=data
         assert b'THIS IS A TEST' in file_data
-        sshs.rs.sftp.rewind(sftp_f) # Be kind and rewind! :)
-        sshs.rs.sftp.close(sftp_f)
+        sshs.rs.scp.rewind(scp_f) # Be kind and rewind! :)
+        sshs.rs.scp.close(scp_f)
         shutil.rmtree(self.real_remote_dir)
 
 if __name__ == '__main__':

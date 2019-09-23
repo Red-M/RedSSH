@@ -18,7 +18,7 @@
 Just rebinding ssh2-python into a slightly nicer format.
 '''
 
-from ssh2.session import Session as session
+from ssh2.session import Session
 from ssh2.session import LIBSSH2_HOSTKEY_HASH_SHA1,LIBSSH2_HOSTKEY_TYPE_RSA
 from ssh2.knownhost import LIBSSH2_KNOWNHOST_TYPE_PLAIN,LIBSSH2_KNOWNHOST_KEYENC_RAW,LIBSSH2_KNOWNHOST_KEY_SSHRSA,LIBSSH2_KNOWNHOST_KEY_SSHDSS
 from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND

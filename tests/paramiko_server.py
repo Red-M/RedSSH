@@ -49,6 +49,7 @@ class Server(StubServer):
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
+        print(kind)
         return(paramiko.OPEN_SUCCEEDED)
 
     def check_port_forward_request(self, address, port):

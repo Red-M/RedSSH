@@ -11,6 +11,8 @@ Welcome to RedSSH's documentation!
    :caption: Contents:
 
    redssh
+   sftp
+   enums
    exceptions
 
 

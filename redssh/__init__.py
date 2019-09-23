@@ -28,4 +28,5 @@ VERSION = u'2.0.4'
 from redssh.redssh import RedSSH
 from redssh.redssh import exceptions
 import redssh.libssh2 as libssh2
+import redssh.sftp as sftp
 
