@@ -101,6 +101,10 @@ def remote_handler(self,host,port,bind_addr,local_port,terminate,wait_for_chan):
                     for buf in self._read_iter(chan.read,req_wait):
                         request.send(buf)
                         sent+=len(buf)
+                        if terminate.is_set()==True or self._block(chan.eof)==True:
+                            break
+                    if terminate.is_set()==True or self._block(chan.eof)==True:
+                        return()
                     if sent==0:
                         # print('chan_break')
                         break

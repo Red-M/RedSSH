@@ -71,7 +71,7 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
-    def test_remote_tunnel_read_write(self): # non-functioning.
+    def test_remote_tunnel_read_write(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('', 0))
@@ -85,6 +85,31 @@ class RedSSHUnitTest(unittest.TestCase):
         out = get_local(port)
         sshs.wait_for('Command$ ')
         assert self.response_text in out
+
+    def test_local_remote_tunnels(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('', 0))
+        port = int(sock.getsockname()[1])
+        sock.close()
+
+
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('remote_tunnel_test')
+        sshs.rs.remote_tunnel(port,'google.com',80)
+        sshs.wait_for('Tunneled')
+        out = get_local(port)
+        sshs.wait_for('Command$ ')
+        assert self.response_text in out
+
+        sshs.sendline('local_tunnel_test')
+        (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
+        sshs.wait_for('Tunneled')
+        out = get_local(port)
+        sshs.wait_for('Command$ ')
+        assert self.response_text in out
+
 
 
 if __name__ == '__main__':

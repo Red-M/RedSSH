@@ -53,7 +53,7 @@ class Server(StubServer):
         return(paramiko.OPEN_SUCCEEDED)
 
     def check_port_forward_request(self, address, port):
-        print((address, port))
+        # print((address, port))
         return(port)
 
     def check_auth_password(self, username, password):
@@ -81,7 +81,7 @@ class Server(StubServer):
         return(True)
 
     def get_allowed_auths(self, username):
-        return('password,publickey,keyboard-interactive')
+        return('publickey,password,keyboard-interactive')
 
     def check_channel_shell_request(self, channel):
         self.event.set()
