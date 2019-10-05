@@ -16,118 +16,105 @@
 # 51 Franklin Street,Fifth Floor,Boston,MA 02110-1301 USA.
 
 
-
-
-# forward.py from paramiko
-# Copyright (C) 2003-2007  Robey Pointer <robeypointer@gmail.com>
-#
-# This file is part of paramiko.
-#
-# Paramiko is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation; either version 2.1 of the License,or (at your option)
-# any later version.
-#
-# Paramiko is distributed in the hope that it will be useful,but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-# A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
-# details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Paramiko; if not,write to the Free Software Foundation,Inc.,
-# 59 Temple Place,Suite 330,Boston,MA  02111-1307  USA.
-
-# rforward.py from paramiko
-# Copyright (C) 2008  Robey Pointer <robeypointer@gmail.com>
-#
-# This file is part of paramiko.
-#
-# Paramiko is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License as published by the Free
-# Software Foundation; either version 2.1 of the License,or (at your option)
-# any later version.
-#
-# Paramiko is distributed in the hope that it will be useful,but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-# A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
-# details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with Paramiko; if not,write to the Free Software Foundation,Inc.,
-# 59 Temple Place,Suite 330,Boston,MA  02111-1307  USA.
-
+import threading
 import socket
 import select
 import time
 
-from ssh2.session import LIBSSH2_SESSION_BLOCK_INBOUND,LIBSSH2_SESSION_BLOCK_OUTBOUND
-from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
+from redssh import libssh2
 
 try:
     import SocketServer
 except ImportError:
     import socketserver as SocketServer
 
-class ForwardServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
+class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+    def __init__(self,bind_arg,handler,caller,remote_host,remote_port,wchan):
+        self.caller = caller
+        self.remote_host = remote_host
+        self.remote_port = remote_port
+        self.wchan = wchan
+        super().__init__(bind_arg,handler)
 
-class ForwardHandler(SocketServer.BaseRequestHandler):
+    def server_activate(self):
+        self.chan = self.caller._block(self.caller.session.direct_tcpip,self.remote_host,self.remote_port)
+        self.wchan.set()
+        self.socket.listen(self.request_queue_size)
+
+
+class LocalPortHandler(SocketServer.BaseRequestHandler):
     def handle(self):
-        i = None
-        while self.terminate.is_set()==False or self.chan.eof()==True:
-            (r,w,x) = select.select([self.request,self.caller.sock],[],[])
-            if self.terminate.is_set()==True or self.chan.eof()==True:
-                break
-            if self.request in r:
-                data = self.request.recv(1024)
-                if len(data)==0:
-                    break
-                self.caller._block_write(self.chan.write,data)
-            if self.caller.sock in r:
-                for buf in self.caller._read_iter(self.chan.read,self.caller.ssh_wait_time_window):
-                    self.request.send(buf)
-
-        if not self.chan.eof():
-            self.caller._block(self.chan.close)
-        self.request.close()
-
-
-def reverse_handler(self,listener,host,port,local_port,queue):
-    while True:
-        chan = listener.forward_accept()
-        if not chan==LIBSSH2_ERROR_EAGAIN:
-            break
-        elif chan==LIBSSH2_ERROR_EAGAIN:
-            self._block_select(1)
-    try:
-        request = socket.create_connection((host,port))
-    except Exception as e:
-        return()
-
-    while True:
-        itc = None
         try:
-            itc = queue.get(False)
-        except Exception as e:
-            pass
-        if itc=='terminate' or chan.eof():
-            break
-        print(1)
-        (r,w,x) = select.select([self.sock,request],[],[])
-        if request in r:
-            data = request.recv(1024)
-            if len(data)==0:
-                break
-            print('request')
-            self._block_write(chan.write,data)
-        if self.sock in r:
-            print('sock')
-            for buf in self._read_iter(chan.read,self.caller.ssh_wait_time_window):
+            while self.terminate.is_set()==False and self.caller._block(self.server.chan.eof)==False:
+                (r,w,x) = select.select([self.request,self.caller.sock],[],[],self.caller.ssh_wait_time_window)
+                if self.terminate.is_set()==True or self.caller._block(self.server.chan.eof)==True:
+                    break
+                if self.request in r and self.terminate.is_set()==False:
+                    data = self.request.recv(1024)
+                    if len(data)==0:
+                        break
+                    self.caller._block_write(self.server.chan.write,data)
+                if self.caller.sock in r and self.terminate.is_set()==False:
+                    for buf in self.caller._read_iter(self.server.chan.read,self.caller.ssh_wait_time_window):
+                        self.request.send(buf)
+                if self.terminate.is_set()==True or self.caller._block(self.server.chan.eof)==True:
+                    break
+            self.request.close()
+        finally:
+            if self.terminate.is_set()==True:
+                self.server.shutdown()
+
+
+
+def remote_handler(self,host,port,bind_addr,local_port,terminate,wait_for_chan):
+    listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
+    wait_for_chan.set()
+    while terminate.is_set()==False and self._block(self.channel.eof)==False:
+        try:
+            chan = listener.forward_accept()
+            # print('chan_init')
+        except:
+            continue
+        if chan==libssh2.LIBSSH2_ERROR_EAGAIN:
+            self._block_select(self.ssh_wait_time_window)
+        else:
+            try:
+                req_wait_calc = time.time()
+                request = socket.create_connection((host,port))
+                req_wait = time.time()-req_wait_calc
+            except Exception as e:
+                self._block(chan.close)
+                return()
+            for buf in self._read_iter(chan.read,req_wait):
                 request.send(buf)
-    if not chan.eof():
-        self._block(chan.close)
-    request.close()
+            while terminate.is_set()==False and self._block(chan.eof)==False:
+                # print('sel1')
+                (r,w,x) = select.select([self.sock,request],[],[],req_wait)
+                # print('sel2')
+                if terminate.is_set()==True or self._block(chan.eof)==True:
+                    return()
+                if self.sock in r:
+                    sent = 0
+                    for buf in self._read_iter(chan.read,req_wait):
+                        request.send(buf)
+                        sent+=len(buf)
+                    if sent==0:
+                        # print('chan_break')
+                        break
+                if request in r:
+                    # print('req')
+                    data = request.recv(1024)
+                    self._block_write(chan.write,data)
+                    if len(data)==0:
+                        # print('req_break')
+                        break
+            # print('term')
+            self._block(chan.close)
+            break
+
+
 
 

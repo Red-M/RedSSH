@@ -27,6 +27,7 @@ DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR 
 class RedSFTP(object):
     def __init__(self,caller):
         self.caller = caller
+        self.enable_fsync = False
         self.client = self.caller._block(self.caller.session.sftp_init)
 
 
@@ -157,7 +158,8 @@ class RedSFTP(object):
         :return: ``None``
         '''
         if self.caller.__check_for_attr__('sftp'):
-            # self.caller._block(file_obj.fsync)
+            if self.enable_fsync==True:
+                self.caller._block(file_obj.fsync)
             self.caller._block(file_obj.close)
 
     def put_folder(self,local_path,remote_path,recursive=False):

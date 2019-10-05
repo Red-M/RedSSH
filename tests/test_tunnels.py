@@ -26,6 +26,12 @@ class SSHSession(object):
     def sendline(self, line):
         self.rs.send(line+'\r\n')
 
+def get_local(port):
+    try:
+        out = requests.get('http://localhost:'+str(port),timeout=(3,3)).text
+        return(out)
+    except Exception as e:
+        print(e)
 
 
 class RedSSHUnitTest(unittest.TestCase):
@@ -37,6 +43,7 @@ class RedSSHUnitTest(unittest.TestCase):
         self.server_hostname = 'localhost'
         self.server_port = self.q.get()
         self.ssh_sessions = []
+        self.response_text = '<title>Error 404 (Not Found)!!1</title>'
 
     def start_ssh_session(self):
         sshs = SSHSession(self.server_hostname,self.server_port)
@@ -54,15 +61,30 @@ class RedSSHUnitTest(unittest.TestCase):
         self.server.kill()
 
 
-    def test_basic_tunnel_read_write(self):
-        port = 2727
+    def test_local_tunnel_read_write(self):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
-        sshs.sendline('tunnel_test')
-        sshs.rs.forward_tunnel(port,'google.com',80)
+        sshs.sendline('local_tunnel_test')
+        (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
-        print(requests.get('http://localhost:'+str(port)))
+        out = get_local(port)
         sshs.wait_for('Command$ ')
+        assert self.response_text in out
+
+    def test_remote_tunnel_read_write(self): # non-functioning.
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('', 0))
+        port = int(sock.getsockname()[1])
+        sock.close()
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('remote_tunnel_test')
+        sshs.rs.remote_tunnel(port,'google.com',80)
+        sshs.wait_for('Tunneled')
+        out = get_local(port)
+        sshs.wait_for('Command$ ')
+        assert self.response_text in out
 
 
 if __name__ == '__main__':

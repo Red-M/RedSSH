@@ -28,6 +28,7 @@ import sys
 import threading
 import cryptography
 import traceback
+import requests
 
 import paramiko
 from paramiko.py3compat import b, u, decodebytes
@@ -49,7 +50,6 @@ class Server(StubServer):
         self.event = threading.Event()
 
     def check_channel_request(self, kind, chanid):
-        print(kind)
         return(paramiko.OPEN_SUCCEEDED)
 
     def check_port_forward_request(self, address, port):
@@ -118,9 +118,9 @@ class Server(StubServer):
         return True
 
     def check_port_forward_request(self, addr, port):
+        self._listen_args = (addr,port)
         self._listen = socket.socket()
         self._listen.bind((addr, port))
-        self._listen.listen(1)
         return(self._listen.getsockname()[1])
 
     def cancel_port_forward_request(self, addr, port):
@@ -141,7 +141,7 @@ class Commands(object):
     def send(self, line):
         self.chan.send(line+line_endings)
 
-    def cmd_tunnel_test(self):
+    def cmd_local_tunnel_test(self):
         self.send('Tunneled')
         sch = self.server.transport.accept(10)
         (origin,destination) = self.server._tcpip_options
@@ -149,6 +149,18 @@ class Commands(object):
         cch.send(sch.recv(256))
         sch.send(cch.recv(2048))
         sch.close()
+
+    def cmd_remote_tunnel_test(self):
+        while not '_listen' in dir(self.server):
+            time.sleep(0.01)
+        port = self.server._listen.getsockname()[1]
+        self.server._listen.listen(100)
+        self.send('Tunneled')
+        (cch, addr) = self.server._listen.accept()
+        sch = self.server.transport.open_forwarded_tcpip_channel(addr, self.server._listen_args)
+        sch.send(cch.recv(256))
+        cch.send(sch.recv(2048))
+        cch.close()
 
     def cmd_reply(self):
         self.send('PONG!')
@@ -192,7 +204,7 @@ def start_server(queue):
     try:
         sock.listen(100)
         print('Listening for connection ...')
-        client, addr = sock.accept()
+        (client, addr) = sock.accept()
     except Exception as e:
         print('*** Listen/accept failed: ' + str(e))
         traceback.print_exc()

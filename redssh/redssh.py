@@ -23,13 +23,12 @@ import threading
 import multiprocessing
 import socket
 import select
-
+import ssh2
 
 from redssh import libssh2
 from redssh import exceptions
 from redssh import enums
 from redssh import sftp
-from redssh import scp
 from redssh import tunnelling
 
 
@@ -68,12 +67,11 @@ class RedSSH(object):
     def __check_for_attr__(self,attr):
         return(attr in self.__dict__)
 
-    def __shutdown_thread__(self,thread,queue):
-        if isinstance(queue,threading.Event):
-            queue.set()
-        else:
-            queue.put('terminate')
-        if thread.is_alive():
+    def __shutdown_thread__(self,thread,queue,server):
+        queue.set()
+        if not server==None:
+            server.shutdown()
+        if thread.is_alive()==True:
             thread.join()
 
     def ssh_keepalive(self):
@@ -88,7 +86,7 @@ class RedSSH(object):
     def _block_select(self,timeout=None):
         block_direction = self.session.block_directions()
         if block_direction==0:
-            return()
+            return(None)
         rfds = []
         wfds = []
         if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
@@ -188,7 +186,11 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('past_login')==False:
             if sock==None:
+                ping_timer = time.time()
                 self.sock = socket.create_connection((hostname,port),timeout)
+                ping_timer = float(time.time()-ping_timer)
+                if self.ssh_wait_time_window==None:
+                    self.ssh_wait_time_window = ping_timer
                 self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
             else:
                 self.sock = sock
@@ -196,9 +198,9 @@ class RedSSH(object):
             # self.session.publickey_init()
             ping_timer = time.time()
             self.session.handshake(self.sock)
-            ping_timer = float(time.time()-ping_timer)/4.5
+            ping_timer = float(time.time()-ping_timer)/3.2
             if self.ssh_wait_time_window==None:
-                self.ssh_wait_time_window = ping_timer # find out how much wait time is required from the initial connection, only if this hasn't been set by the user.
+                self.ssh_wait_time_window = ping_timer
             # print(self.ssh_wait_time_window)
 
             self.check_host_key(hostname,port)
@@ -309,6 +311,14 @@ class RedSSH(object):
         if self.past_login==True:
             self._block_write(self.channel.write,string)
 
+    def last_error(self):
+        '''
+        Get the last error from the current session.
+
+        :return: ``str``
+        '''
+        return(self._block(self.session.last_error))
+
     def start_sftp(self):
         '''
         Start the SFTP client.
@@ -316,14 +326,7 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login') and self.__check_for_attr__('sftp')==False:
             self.sftp = sftp.RedSFTP(self)
 
-    def start_scp(self):
-        '''
-        Start the SCP client.
-        '''
-        if self.__check_for_attr__('past_login') and self.__check_for_attr__('scp')==False:
-            self.scp = scp.RedSCP(self)
-
-    def forward_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
+    def local_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
         '''
 
         Forwards a port the same way the ``-L`` option does for the OpenSSH client.
@@ -336,33 +339,34 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
-        :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server)`` this is so you can control the tunnel's thread if you need to.
+        :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server,tun_server_port)`` this is so you can control the tunnel's thread if you need to.
         '''
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['local']:
+            wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
-            requested_chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,bind_addr,local_port)
 
-            class SubHander(tunnelling.ForwardHandler):
+            class SubHander(tunnelling.LocalPortHandler):
                 caller = self
                 chain_host = remote_host
                 chain_port = remote_port
                 terminate = thread_terminate
-                chan = requested_chan
+                wchan = wait_for_chan
 
-            tun_server = tunnelling.ForwardServer((bind_addr,local_port),SubHander)
+            tun_server = tunnelling.LocalPortServer((bind_addr,local_port),SubHander,self,remote_host,remote_port,wait_for_chan)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
-            tun_thread.name = option_string
+            tun_thread.name = 'local:'+option_string
             tun_thread.start()
-            self.tunnels['local'][option_string] = (tun_thread,thread_terminate,tun_server)
+            wait_for_chan.wait()
+            if local_port==0:
+                local_port = tun_server.socket.getsockname()[1]
+                option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
+            self.tunnels['local'][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
         return(self.tunnels['local'][option_string])
 
-    def reverse_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
+    def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
         '''
-        .. warning::
-            This is broken in this commit. Will be fixed later. It currently does nothing.
-
 
         Forwards a port the same way the ``-R`` option does for the OpenSSH client.
 
@@ -372,18 +376,18 @@ class RedSSH(object):
         :type remote_host: ``str``
         :param remote_port: The remote host's port to connect to via the local machine.
         :type remote_port: ``int``
-        :return: ``tuple`` of ``(tun_thread,thread_queue,None)`` this is so you can control the tunnel's thread if you need to.
+        :return: ``tuple`` of ``(tun_thread,thread_terminate,None,None)`` this is so you can control the tunnel's thread if you need to.
         '''
-        return()
         option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels['remote']:
-            thread_queue = threading.Event()
-            listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
-            tun_thread = threading.Thread(target=tunnelling.reverse_handler,args=(self,listener,remote_host,remote_port,local_port,thread_queue))
+            wait_for_chan = threading.Event()
+            thread_terminate = threading.Event()
+            tun_thread = threading.Thread(target=tunnelling.remote_handler,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan))
             tun_thread.daemon = True
-            tun_thread.name = option_string
+            tun_thread.name = 'remote:'+option_string
             tun_thread.start()
-            self.tunnels['remote'][option_string] = (tun_thread,thread_queue,None)
+            wait_for_chan.wait()
+            self.tunnels['remote'][option_string] = (tun_thread,thread_terminate,None,None)
         return(self.tunnels['remote'][option_string])
 
 
@@ -393,10 +397,9 @@ class RedSSH(object):
         '''
         for thread_type in self.tunnels:
             for option_string in self.tunnels[thread_type]:
-                (thread,queue,server) = self.tunnels[thread_type][option_string]
-                if not server==None:
-                    server.shutdown()
-                self.__shutdown_thread__(thread,queue)
+                (thread,queue,server,server_port) = self.tunnels[thread_type][option_string]
+                self.__shutdown_thread__(thread,queue,server)
+        del self.tunnels
 
     def exit(self):
         '''
@@ -405,10 +408,13 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
+                if self.__check_for_attr__('sftp')==True:
+                    del self.sftp
                 self.close_tunnels()
                 if not self._ssh_keepalive_thread==None:
-                    self.__shutdown_thread__(self._ssh_keepalive_thread,self._ssh_keepalive_event)
+                    self.__shutdown_thread__(self._ssh_keepalive_thread,self._ssh_keepalive_event,None)
                 self._block(self.channel.close)
                 self._block(self.session.disconnect)
                 self.sock.close()
                 del self.sock,self.session,self.channel,self.past_login,self._ssh_keepalive_thread
+                # ssh2.utils.ssh2_exit()
