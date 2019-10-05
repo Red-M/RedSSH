@@ -30,6 +30,8 @@ I've found other automation libraries or solutions lacking, such as:
 
 # TO DO
 - Unit tests
+- Host based authentication
+- Host key checking
 - More examples
 - SCP
 - X11 forwarding
