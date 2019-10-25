@@ -138,6 +138,13 @@ class RedSSH(object):
         if remainder_len>0:
             yield(remainder)
 
+    def eof(self):
+        '''
+        Returns if the main channel has recieved an `EOF`.
+        '''
+        if self.__check_for_attr__('channel')==True:
+            return(self._block(self.channel.eof))
+
     def check_host_key(self,hostname,port):
         self.known_hosts = self.session.knownhost_init()
         if os.path.exists(self.known_hosts_path)==True:
