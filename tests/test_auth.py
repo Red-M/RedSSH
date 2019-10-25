@@ -58,6 +58,8 @@ class RedSSHUnitTest(unittest.TestCase):
         return(sshs)
 
     def end_ssh_session(self,sshs):
+        sshs.sendline('exit')
+        sshs.wait_for('TEST')
         sshs.rs.exit()
 
     def tearDown(self):
@@ -70,7 +72,8 @@ class RedSSHUnitTest(unittest.TestCase):
 
     def test_agent_auth(self):
         try:
-            sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True}) # this currently doesn't work.
+            # spawn ssh agent and remove potiental for agent already in environ
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True})
             sshs.wait_for('Command$ ')
             sshs.sendline('reply')
         except redssh.exceptions.AuthenticationFailedException:

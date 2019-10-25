@@ -60,6 +60,8 @@ class RedSSHUnitTest(unittest.TestCase):
         return(sshs)
 
     def end_ssh_session(self,sshs):
+        sshs.sendline('exit')
+        sshs.wait_for('TEST')
         sshs.rs.exit()
 
     def tearDown(self):
@@ -76,9 +78,33 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('reply')
 
     def test_known_hosts(self):
-        sshs = self.start_ssh_session(class_init={'known_hosts':os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')})
-        sshs.wait_for('Command$ ')
-        sshs.sendline('reply')
+        known_hosts_file = os.path.join('tests','known_hosts')
+        try:
+            os.remove(known_hosts_file)
+        except:
+            pass
+        for verify_level in redssh.enums.SSHHostKeyVerify:
+            class_init = {
+                'known_hosts':known_hosts_file,
+                'ssh_host_key_verification': verify_level
+            }
+            try:
+                sshs = self.start_ssh_session(class_init=class_init)
+            except redssh.libssh2.exceptions.KnownHostCheckNotFoundError:
+                assert verify_level==redssh.enums.SSHHostKeyVerify.strict
+                continue
+            sshs.wait_for('Command$ ')
+            sshs.sendline('reply')
+            sshs.wait_for('Command$ ')
+            if verify_level==redssh.enums.SSHHostKeyVerify.auto_add:
+                sshs2 = self.start_ssh_session(class_init=class_init)
+                sshs2.wait_for('Command$ ')
+                sshs2.sendline('reply')
+                sshs2.wait_for('Command$ ')
+            try:
+                os.remove(known_hosts_file)
+            except:
+                pass
 
     def test_bring_your_own_socket(self):
         server_port = self.start_ssh_server()

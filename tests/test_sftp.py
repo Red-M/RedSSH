@@ -61,6 +61,8 @@ class RedSSHUnitTest(unittest.TestCase):
         return(sshs)
 
     def end_ssh_session(self,sshs):
+        sshs.sendline('exit')
+        sshs.wait_for('TEST')
         sshs.rs.exit()
 
     def tearDown(self):

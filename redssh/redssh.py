@@ -18,7 +18,8 @@
 
 import os
 import re
-import time # not for the reasons you think...
+import time
+import hashlib
 import threading
 import multiprocessing
 import socket
@@ -55,6 +56,7 @@ class RedSSH(object):
         self.tunnels = {'local':{},'remote':{}}
         self.terminal = terminal
         self.ssh_wait_time_window = ssh_wait_time_window
+        self.ssh_wait_time_window_floor = 0.05
         self.ssh_host_key_verification = ssh_host_key_verification
         self.ssh_keepalive_interval = ssh_keepalive_interval
         self._ssh_keepalive_thread = None
@@ -149,12 +151,28 @@ class RedSSH(object):
         else:
             server_key_type = libssh2.LIBSSH2_KNOWNHOST_KEY_SSHDSS
         key_bitmask = libssh2.LIBSSH2_KNOWNHOST_TYPE_PLAIN|libssh2.LIBSSH2_KNOWNHOST_KEYENC_RAW|server_key_type
+
+        if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
+            return(None)
+
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.strict:
             self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
+
+        if self.ssh_host_key_verification==enums.SSHHostKeyVerify.warn:
+            try:
+                self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
+            except Exception as e:
+                print('WARN: '+str(e))
+
+        if self.ssh_host_key_verification in [enums.SSHHostKeyVerify.auto_add,enums.SSHHostKeyVerify.warn_auto_add]:
+            try:
+                self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
+                return(None)
+            except Exception as e:
+                if self.ssh_host_key_verification==enums.SSHHostKeyVerify.warn_auto_add:
+                    print('WARN: '+str(e))
             self.known_hosts.addc(hostname,host_key,key_bitmask)
-            for hk in self.known_hosts.get():
-                if hk.name==hostname:
-                    print(self.known_hosts.writeline(hk))
+            self.known_hosts.writefile(self.known_hosts_path)
 
     def connect(self,hostname,port=22,username=None,password=None,allow_agent=True,
         #host_based=None,
@@ -201,7 +219,9 @@ class RedSSH(object):
             ping_timer = float(time.time()-ping_timer)/3.2
             if self.ssh_wait_time_window==None:
                 self.ssh_wait_time_window = ping_timer
-            # print(self.ssh_wait_time_window)
+            if self.ssh_wait_time_window<self.ssh_wait_time_window_floor:
+                self.ssh_wait_time_window = self.ssh_wait_time_window_floor
+            print(self.ssh_wait_time_window)
 
             self.check_host_key(hostname,port)
 
