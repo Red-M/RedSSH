@@ -16,6 +16,7 @@
 # 51 Franklin Street,Fifth Floor,Boston,MA 02110-1301 USA.
 
 
+import multiprocessing
 import threading
 import socket
 import select
@@ -37,6 +38,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
         self.remote_host = remote_host
         self.remote_port = remote_port
         self.wchan = wchan
+        self.wchan_lock = multiprocessing.Lock()
         super().__init__(bind_arg,handler)
 
     def server_activate(self):
@@ -46,21 +48,40 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
 
 
 class LocalPortHandler(SocketServer.BaseRequestHandler):
+
+    def _ssh_block(self,func,*args,**kwargs):
+        self.server.wchan_lock.acquire()
+        response = self.caller._block(func,*args,**kwargs)
+        self.server.wchan_lock.release()
+        return(response)
+
+    def _ssh_block_write(self,func,data,timeout=None):
+        self.server.wchan_lock.acquire()
+        self.caller._block_write(func,data,timeout=timeout)
+        self.server.wchan_lock.release()
+
+    def _ssh_read_iter(self,func,timeout=None):
+        self.server.wchan_lock.acquire()
+        response = self.caller._read_iter(func,timeout=timeout)
+        self.server.wchan_lock.release()
+        return(response)
+
+
     def handle(self):
         try:
-            while self.terminate.is_set()==False and self.caller._block(self.server.chan.eof)==False:
+            while self.terminate.is_set()==False and self._ssh_block(self.server.chan.eof)==False:
                 (r,w,x) = select.select([self.request,self.caller.sock],[],[],self.caller.ssh_wait_time_window)
-                if self.terminate.is_set()==True or self.caller._block(self.server.chan.eof)==True:
+                if self.terminate.is_set()==True or self._ssh_block(self.server.chan.eof)==True:
                     break
                 if self.request in r and self.terminate.is_set()==False:
                     data = self.request.recv(1024)
                     if len(data)==0:
                         break
-                    self.caller._block_write(self.server.chan.write,data)
+                    self._ssh_block_write(self.server.chan.write,data)
                 if self.caller.sock in r and self.terminate.is_set()==False:
-                    for buf in self.caller._read_iter(self.server.chan.read,self.caller.ssh_wait_time_window):
+                    for buf in self._ssh_read_iter(self.server.chan.read,self.caller.ssh_wait_time_window):
                         self.request.send(buf)
-                if self.terminate.is_set()==True or self.caller._block(self.server.chan.eof)==True:
+                if self.terminate.is_set()==True or self._ssh_block(self.server.chan.eof)==True:
                     break
             self.request.close()
         finally:
