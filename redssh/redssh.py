@@ -140,7 +140,7 @@ class RedSSH(object):
 
     def eof(self):
         '''
-        Returns if the main channel has recieved an `EOF`.
+        Returns ``True`` or ``False`` when the main channel has recieved an ``EOF``.
         '''
         if self.__check_for_attr__('channel')==True:
             return(self._block(self.channel.eof))
