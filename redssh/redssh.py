@@ -52,6 +52,7 @@ class RedSSH(object):
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=None,
         ssh_host_key_verification=enums.SSHHostKeyVerify.warn,ssh_keepalive_interval=0.0):
         self.debug = False
+        self._block_select_lock = multiprocessing.Lock()
         self.encoding = encoding
         self.tunnels = {'local':{},'remote':{}}
         self.terminal = terminal
@@ -89,6 +90,7 @@ class RedSSH(object):
         block_direction = self.session.block_directions()
         if block_direction==0:
             return(None)
+        self._block_select_lock.acquire()
         rfds = []
         wfds = []
         if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
@@ -96,6 +98,7 @@ class RedSSH(object):
         if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
             wfds = [self.sock]
         select.select(rfds,wfds,[],timeout)
+        self._block_select_lock.release()
 
     def _block(self,func,*args,**kwargs):
         out = func(*args,**kwargs)
