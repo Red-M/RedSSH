@@ -228,7 +228,7 @@ class RedSSH(object):
                 self.ssh_wait_time_window = ping_timer
             if self.ssh_wait_time_window<self.ssh_wait_time_window_floor:
                 self.ssh_wait_time_window = self.ssh_wait_time_window_floor
-            print(self.ssh_wait_time_window)
+            # print(self.ssh_wait_time_window)
 
             self.check_host_key(hostname,port)
 
