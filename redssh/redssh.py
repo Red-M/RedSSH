@@ -122,8 +122,8 @@ class RedSSH(object):
         remainder = b''
         (size,data) = func()
         while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
+            self._block_select(timeout)
             if size==libssh2.LIBSSH2_ERROR_EAGAIN:
-                self._block_select(timeout)
                 (size,data) = func()
             if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
                 return(b'')
