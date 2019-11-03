@@ -10,9 +10,9 @@ from . import paramiko_server as ssh_server
 
 
 class SSHSession(object):
-    def __init__(self,hostname='127.0.0.1',port=2200):
+    def __init__(self,hostname='localhost',port=2200):
         self.rs = redssh.RedSSH()
-        self.rs.connect('127.0.0.1', port, 'redm', 'foobar!')
+        self.rs.connect('localhost', port, 'redm', 'foobar!')
 
     def wait_for(self, wait_string):
         if isinstance(wait_string,type('')):
@@ -40,7 +40,7 @@ class RedSSHUnitTest(unittest.TestCase):
         self.q = multiprocessing.Queue()
         self.server = multiprocessing.Process(target=ssh_server.start_server,args=(self.q,))
         self.server.start()
-        self.server_hostname = '127.0.0.1'
+        self.server_hostname = 'localhost'
         self.server_port = self.q.get()
         self.ssh_sessions = []
         self.response_text = '<title>Error 404 (Not Found)!!1</title>'
@@ -67,7 +67,7 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('local_tunnel_test')
         (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local('http://127.0.0.1:'+str(port))
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
@@ -77,14 +77,14 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('local_tunnel_test')
         (a,b,server,port) = sshs.rs.dynamic_tunnel(0)
         sshs.wait_for('Tunneled')
-        out = get_local('http://google.com',headers={'host':'127.0.0.1'},proxies={'http':'socks5://127.0.0.1:'+str(port),'https':'socks5://127.0.0.1:'+str(port)})
+        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
     def test_remote_tunnel_read_write(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(('localhost', 0))
         port = int(sock.getsockname()[1])
         sock.close()
         sshs = self.start_ssh_session()
@@ -92,14 +92,14 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('remote_tunnel_test')
         sshs.rs.remote_tunnel(port,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local('http://127.0.0.1:'+str(port))
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
     def test_local_remote_dynamic_tunnels(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(('localhost', 0))
         port = int(sock.getsockname()[1])
         sock.close()
 
@@ -109,21 +109,21 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('remote_tunnel_test')
         sshs.rs.remote_tunnel(port,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local('http://127.0.0.1:'+str(port))
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
         (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local('http://127.0.0.1:'+str(port))
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
         (a,b,server,port) = sshs.rs.dynamic_tunnel(0)
         sshs.wait_for('Tunneled')
-        out = get_local('http://google.com',headers={'host':'127.0.0.1'},proxies={'http':'socks5://127.0.0.1:'+str(port),'https':'socks5://127.0.0.1:'+str(port)})
+        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 

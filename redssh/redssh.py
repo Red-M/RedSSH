@@ -507,7 +507,7 @@ class RedSSH(object):
             self.tunnels[enums.TunnelType.dynamic.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
         return(self.tunnels[enums.TunnelType.dynamic.value][option_string])
 
-    def shutdown_tunnel(self,tunnel_type,sport,rhost,rport,bind_addr=''):
+    def shutdown_tunnel(self,tunnel_type,sport,rhost,rport,bind_addr='127.0.0.1'):
         '''
 
         Closes an open tunnel.

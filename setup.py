@@ -34,6 +34,7 @@ doc_deps = [
 ]
 
 test_deps = [
+    'requests[socks]',
     'asyncssh',
     'paramiko',
     'sftpserver',
