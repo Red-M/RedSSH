@@ -33,6 +33,6 @@ I've found other automation libraries or solutions lacking, such as:
 - Host based authentication
 - Host key checking
 - More examples
-- SCP
+- Make SCP more robust
 - X11 forwarding
 
