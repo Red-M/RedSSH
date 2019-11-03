@@ -22,9 +22,6 @@ import re
 from redssh import libssh2
 from redssh import exceptions
 
-DEFAULT_WRITE_MODE = libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC
-DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR | libssh2.LIBSSH2_SFTP_S_IRGRP | libssh2.LIBSSH2_SFTP_S_IWGRP | libssh2.LIBSSH2_SFTP_S_IROTH
-
 class RedSCP(object):
     def __init__(self,caller):
         '''
@@ -32,6 +29,7 @@ class RedSCP(object):
             This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
         '''
         self.caller = caller
+        self._ls_re = re.compile(b'^(?P<file_type>[d\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\s+(?P<subitems>\d+)\s+(?P<owner_name>.+?)\s+(?P<group_name>.+?)\s+(?P<size>\d+)\s+(?P<datetime_m>[\d-]+\s+[\d\:\.]+)\s+(?P<tz>[\-\+]\d+)\s+(?P<file_name>.+?)$',re.MULTILINE)
 
 
     def _exec(self, command):
@@ -71,10 +69,16 @@ class RedSCP(object):
         :type remote_path: ``str``
         :return: ``dict``
         '''
-        out = {'dirs':[],'files':[]}
-        (ret,cmd_out) = self._exec('stat '+remote_path)
+        out = {'dirs':{},'files':{}}
+        (ret,cmd_out) = self._exec('\\ls -la --full-time "'+remote_path+'"')
         if ret==0:
-            out['dirs'] = cmd_out
+            for match in self._ls_re.finditer(cmd_out):
+                file_dict = match.groupdict()
+                file_dict['file_name'] = file_dict['file_name'].rstrip() # remove trailing new lines
+                if file_dict['file_type']==b'd':
+                    out['dirs'][file_dict['file_name']] = file_dict
+                elif file_dict['file_type']==b'-':
+                    out['files'][file_dict['file_name']] = file_dict
         return(out)
 
     def write(self,local_path,remote_path):
@@ -87,7 +91,7 @@ class RedSCP(object):
         :type remote_path: ``str``
         :return: ``None``
         '''
-        # print(remote_path)
+        # print('PUT: '+remote_path)
         stat = os.stat(local_path)
         f = open(local_path,'rb',2097152)
         chan = self.caller._block(self.caller.session.scp_send64,remote_path,stat.st_mode & 0o777,stat.st_size,stat.st_mtime,stat.st_atime)
