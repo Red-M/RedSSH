@@ -158,7 +158,8 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
         while chan==libssh2.LIBSSH2_ERROR_EAGAIN and terminate.is_set()==False:
             self._block_select()
             with self._block_lock:
-                chan = listener.forward_accept()
+                if terminate.is_set()==False:
+                    chan = listener.forward_accept()
         if terminate.is_set()==True:
             break
         thread = threading.Thread(target=remote_handle,args=(self,chan,host,port,terminate,error_level))

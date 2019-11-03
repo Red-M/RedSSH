@@ -71,7 +71,7 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
-    def test_dynamic_tunnel_read_write(self): # server implementation is broken...
+    def test_dynamic_tunnel_read_write(self):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('local_tunnel_test')
