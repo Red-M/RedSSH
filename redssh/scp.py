@@ -17,7 +17,6 @@
 
 
 import os
-import time
 import re
 
 from redssh import libssh2
