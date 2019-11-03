@@ -514,8 +514,11 @@ class RedSSH(object):
         Provide the same arguments to this that was given for openning the tunnel.
 
         Examples:
+
         `local_tunnel(9999,'localhost',8888)` would be `shutdown_tunnel(redssh.enums.TunnelType.local,9999,'localhost',8888)`
+
         `remote_tunnel(7777,'localhost',8888)` would be `shutdown_tunnel(redssh.enums.TunnelType.remote,7777,'localhost',8888)`
+
         `dynamic_tunnel(9999)` would be `shutdown_tunnel(redssh.enums.TunnelType.dynamic,9999,None,None)`
 
         :param tunnel_type: The tunnel type to shutdown.
