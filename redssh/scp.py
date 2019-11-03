@@ -65,6 +65,12 @@ class RedSCP(object):
         '''
         List a directory or path on the remote server.
 
+        Returns a dictionary of ``'dirs'`` and ``'files'`` as the top level keys,
+        below that is all the file names as the keys and the values of those is
+        the file attributes obtained from listing the directory. Inlcudes,
+        file size, datetime modified and all the permissions for that file.
+
+
         :param remote_path: Path to list on the remote server.
         :type remote_path: ``str``
         :return: ``dict``
