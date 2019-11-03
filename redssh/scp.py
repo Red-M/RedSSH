@@ -27,6 +27,10 @@ DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR 
 
 class RedSCP(object):
     def __init__(self,caller):
+        '''
+        .. warning::
+            This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
+        '''
         self.caller = caller
 
 
@@ -50,9 +54,6 @@ class RedSCP(object):
         '''
         Makes a directory using SCP on the remote server.
 
-        .. warning::
-            This will only create directories with the user you logged in as, not the current user you are running commands as.
-
         :param remote_path: Path the directory is going to be made at on the remote server.
         :type remote_path: ``str``
         :param dir_mode: File mode in decimal (not the octal value) for the directory being created.
@@ -66,12 +67,9 @@ class RedSCP(object):
         '''
         List a directory or path on the remote server.
 
-        .. warning::
-            This will only open files with the user you logged in as, not the current user you are running commands as.
-
         :param remote_path: Path to list on the remote server.
         :type remote_path: ``str``
-        :return: ``dict`
+        :return: ``dict``
         '''
         out = {'dirs':[],'files':[]}
         (ret,cmd_out) = self._exec('stat '+remote_path)
@@ -82,9 +80,6 @@ class RedSCP(object):
     def write(self,local_path,remote_path):
         '''
         Write a local file to a remote file path over SCP on the remote server.
-
-        .. warning::
-            This will only write files with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: Local path to read from.
         :type local_path: ``str``
@@ -105,9 +100,6 @@ class RedSCP(object):
         '''
         Read from file over SCP on the remote server.
 
-        .. warning::
-            This will only read files with the user you logged in as, not the current user you are running commands as.
-
         :param file_path: Remote file path to read from.
         :type file_path: ``str``
         :return: ``byte str`` or ``iter``
@@ -126,9 +118,6 @@ class RedSCP(object):
         '''
         Upload an entire folder via SCP to the remote session. Similar to ``scp /files/* user@host:/target``
         Also retains file permissions.
-
-        .. warning::
-            This will only upload with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: The local path, on the machine where your code is running from, to upload from.
         :type local_path: ``str``
@@ -157,9 +146,6 @@ class RedSCP(object):
         '''
         Upload file via SCP to the remote session. Similar to ``scp /files/file user@host:/target``.
         Also retains file permissions.
-
-        .. warning::
-            This will only upload with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: The local path to upload from.
         :type local_path: ``str``

@@ -26,6 +26,10 @@ DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR 
 
 class RedSFTP(object):
     def __init__(self,caller):
+        '''
+        .. warning::
+            This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
+        '''
         self.caller = caller
         self.enable_fsync = False
         self.client = self.caller._block(self.caller.session.sftp_init)
@@ -34,9 +38,6 @@ class RedSFTP(object):
     def mkdir(self,remote_path,dir_mode):
         '''
         Makes a directory using SFTP on the remote server.
-
-        .. warning::
-            This will only create directories with the user you logged in as, not the current user you are running commands as.
 
         :param remote_path: Path the directory is going to be made at on the remote server.
         :type remote_path: ``str``
@@ -50,9 +51,6 @@ class RedSFTP(object):
     def list_dir(self,remote_path):
         '''
         Open a file object over SFTP on the remote server.
-
-        .. warning::
-            This will only open files with the user you logged in as, not the current user you are running commands as.
 
         :param remote_path: Path that file is located at on the remote server.
         :type remote_path: ``str``
@@ -68,9 +66,6 @@ class RedSFTP(object):
     def open(self,remote_path,sftp_flags,file_mode):
         '''
         Open a file object over SFTP on the remote server.
-
-        .. warning::
-            This will only open files with the user you logged in as, not the current user you are running commands as.
 
         :param remote_path: Path that file is located at on the remote server.
         :type remote_path: ``str``
@@ -111,9 +106,6 @@ class RedSFTP(object):
         '''
         Write to a file object over SFTP on the remote server.
 
-        .. warning::
-            This will only write files with the user you logged in as, not the current user you are running commands as.
-
         :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
         :type file_obj: `ssh2.sftp.SFTPHandle`
         :param data_bytes: Bytes to write to the file with.
@@ -126,9 +118,6 @@ class RedSFTP(object):
     def read(self,file_obj,iter=False):
         '''
         Read from file object over SFTP on the remote server.
-
-        .. warning::
-            This will only read files with the user you logged in as, not the current user you are running commands as.
 
         :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
         :type file_obj: `ssh2.sftp.SFTPHandle`
@@ -150,9 +139,6 @@ class RedSFTP(object):
         '''
         Closes a file object over SFTP on the remote server. It is a good idea to delete the ``file_obj`` after calling this.
 
-        .. warning::
-            This will only close files with the user you logged in as, not the current user you are running commands as.
-
         :param file_obj: `ssh2.sftp.SFTPHandle` to interact with.
         :type file_obj: `ssh2.sftp.SFTPHandle`
         :return: ``None``
@@ -166,9 +152,6 @@ class RedSFTP(object):
         '''
         Upload an entire folder via SFTP to the remote session. Similar to ``cp -r /files/* /target``
         Also retains file permissions.
-
-        .. warning::
-            This will only upload with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: The local path, on the machine where your code is running from, to upload from.
         :type local_path: ``str``
@@ -198,9 +181,6 @@ class RedSFTP(object):
         '''
         Upload file via SFTP to the remote session. Similar to ``cp /files/file /target``.
         Also retains file permissions.
-
-        .. warning::
-            This will only upload with the user you logged in as, not the current user you are running commands as.
 
         :param local_path: The local path, on the machine where your code is running from, to upload from.
         :type local_path: ``str``
