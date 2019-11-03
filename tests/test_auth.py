@@ -10,7 +10,7 @@ from . import paramiko_server as ssh_server
 
 
 class SSHSession(object):
-    def __init__(self,hostname='localhost',port=2200,class_init={},connect_args={}):
+    def __init__(self,hostname='127.0.0.1',port=2200,class_init={},connect_args={}):
         self.rs = redssh.RedSSH(**class_init)
         connect_args_extra = {
             'username':'redm',
@@ -40,7 +40,7 @@ class RedSSHUnitTest(unittest.TestCase):
         self.bad_key_path = os.path.join(os.path.join(os.getcwd(),'tests'),'ssh_host_does_not_exist')
         self.ssh_servers = []
         self.ssh_sessions = []
-        self.server_hostname = 'localhost'
+        self.server_hostname = '127.0.0.1'
 
     def start_ssh_server(self):
         q = multiprocessing.Queue()

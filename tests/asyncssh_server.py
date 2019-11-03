@@ -136,7 +136,7 @@ class MySSHServer(asyncssh.SSHServer):
 
 async def start_ssh_server(q):
     global server_port,server_q
-    listener = await asyncssh.create_server(MySSHServer,'',server_port,server_host_keys=['tests'+os.path.sep+'ssh_host_key'],process_factory=handle_client,sftp_factory=True,allow_scp=True)
+    listener = await asyncssh.create_server(MySSHServer,'127.0.0.1',server_port,server_host_keys=['tests'+os.path.sep+'ssh_host_key'],process_factory=handle_client,sftp_factory=True,allow_scp=True)
     for item in listener.sockets:
         server_q.put(item.getsockname()[1])
         break

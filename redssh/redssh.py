@@ -398,7 +398,7 @@ class RedSSH(object):
             self.scp = scp.RedSCP(self)
 
 
-    def local_tunnel(self,local_port,remote_host,remote_port,bind_addr='',error_level=enums.TunnelErrorLevel.warn):
+    def local_tunnel(self,local_port,remote_host,remote_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
         '''
 
         Forwards a port on the remote machine the same way the ``-L`` option does for the OpenSSH client.
@@ -442,7 +442,7 @@ class RedSSH(object):
             self.tunnels[enums.TunnelType.local.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
         return(self.tunnels[enums.TunnelType.local.value][option_string])
 
-    def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr='',error_level=enums.TunnelErrorLevel.warn):
+    def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
         '''
 
         Forwards a port to the remote machine via the local machine the same way the ``-R`` option does for the OpenSSH client.
@@ -469,7 +469,7 @@ class RedSSH(object):
             self.tunnels[enums.TunnelType.remote.value][option_string] = (tun_thread,thread_terminate,None,None)
         return(self.tunnels[enums.TunnelType.remote.value][option_string])
 
-    def dynamic_tunnel(self,local_port,bind_addr='',error_level=enums.TunnelErrorLevel.warn):
+    def dynamic_tunnel(self,local_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
         '''
 
         Opens a SOCKS proxy AKA gateway or dynamic port the same way the ``-D`` option does for the OpenSSH client.

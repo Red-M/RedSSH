@@ -12,7 +12,7 @@ from . import asyncssh_server as ssh_server
 
 
 class SSHSession(object):
-    def __init__(self,hostname='localhost',port=2200,class_init={},connect_args={}):
+    def __init__(self,hostname='127.0.0.1',port=2200,class_init={},connect_args={}):
         self.rs = redssh.RedSSH(**class_init)
         self.rs.connect(hostname, port, 'redm', 'foobar!',**connect_args)
 
@@ -35,7 +35,7 @@ class RedSSHUnitTest(unittest.TestCase):
     def setUp(self):
         self.ssh_servers = []
         self.ssh_sessions = []
-        self.server_hostname = 'localhost'
+        self.server_hostname = '127.0.0.1'
         self.cur_dir = os.path.expanduser(os.path.dirname(__file__))
         test_dir = os.path.join('test_dir','scp')
         self.remote_dir = test_dir
