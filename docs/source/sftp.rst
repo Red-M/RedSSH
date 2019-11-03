@@ -1,7 +1,7 @@
 RedSSH.sftp
 *********************
 
-.. automodule:: redssh.sftp
+.. autoclass:: redssh.sftp
     :members:
     :inherited-members:
     :show-inheritance:
