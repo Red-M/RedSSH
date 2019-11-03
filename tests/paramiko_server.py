@@ -44,7 +44,7 @@ tunnel_opened = False
 class Server(StubServer):
     def __init__(self,transport):
         self.transport = transport
-        self.pkey_path = os.path.join(os.path.join(os.getcwd(),'tests'),'ssh_host_key_paramiko')
+        self.pkey_path = os.path.join(os.path.join(os.getcwd(),'tests'),'ssh_host_key')
         self.pkey = paramiko.rsakey.RSAKey.from_private_key_file(self.pkey_path)
         # self.pkey = paramiko.RSAKey.generate(bits=1024, progress_func=None)
         self.event = threading.Event()

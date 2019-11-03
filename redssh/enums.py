@@ -22,3 +22,13 @@ class SSHHostKeyVerify(enum.Enum):
     warn_auto_add = 2
     auto_add = 3
     none = 4
+
+class TunnelType(enum.Enum):
+    local = 'local'
+    remote = 'remote'
+    dynamic = 'dynamic'
+
+class TunnelErrorLevel(enum.Enum):
+    none = 0
+    warn = 1
+    debug = 2

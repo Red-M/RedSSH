@@ -26,9 +26,9 @@ class SSHSession(object):
     def sendline(self, line):
         self.rs.send(line+'\r\n')
 
-def get_local(port):
+def get_local(url,headers={},proxies={}):
     try:
-        out = requests.get('http://localhost:'+str(port),timeout=(3,3)).text
+        out = requests.get(url,timeout=(3,3),headers=headers,proxies=proxies).text
         return(out)
     except Exception as e:
         print(e)
@@ -67,7 +67,17 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('local_tunnel_test')
         (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local(port)
+        out = get_local('http://localhost:'+str(port))
+        sshs.wait_for('Command$ ')
+        assert self.response_text in out
+
+    def test_dynamic_tunnel_read_write(self): # server implementation is broken...
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('local_tunnel_test')
+        (a,b,server,port) = sshs.rs.dynamic_tunnel(0)
+        sshs.wait_for('Tunneled')
+        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
@@ -82,11 +92,11 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('remote_tunnel_test')
         sshs.rs.remote_tunnel(port,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local(port)
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
-    def test_local_remote_tunnels(self):
+    def test_local_remote_dynamic_tunnels(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('', 0))
@@ -99,17 +109,23 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.sendline('remote_tunnel_test')
         sshs.rs.remote_tunnel(port,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local(port)
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
         (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local(port)
+        out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
+        sshs.sendline('local_tunnel_test')
+        (a,b,server,port) = sshs.rs.dynamic_tunnel(0)
+        sshs.wait_for('Tunneled')
+        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
+        sshs.wait_for('Command$ ')
+        assert self.response_text in out
 
 
 if __name__ == '__main__':

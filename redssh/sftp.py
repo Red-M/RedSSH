@@ -138,10 +138,10 @@ class RedSFTP(object):
         '''
         if self.caller.__check_for_attr__('sftp'):
             if iter==True:
-                return(self.caller._read_iter(file_obj.read))
+                return(self.caller._read_iter(file_obj.read,True))
             elif iter==False:
                 data = b''
-                iter = self.caller._read_iter(file_obj.read)
+                iter = self.caller._read_iter(file_obj.read,True)
                 for chunk in iter:
                     data+=chunk
                 return(data)

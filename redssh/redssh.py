@@ -30,6 +30,7 @@ from redssh import libssh2
 from redssh import exceptions
 from redssh import enums
 from redssh import sftp
+from redssh import scp
 from redssh import tunnelling
 
 
@@ -42,30 +43,31 @@ class RedSSH(object):
     :type encoding: ``str``
     :param terminal: Set the terminal sent to the remote server to something other than the default of ``'vt100'``.
     :type terminal: ``str``
-    :param ssh_wait_time_window: Set the wait time between trying to retreive data from the remote server, changing this from the default value of ``0.01`` will turn off the auto detection method that is done at the time of the initial SSH handshake. Additionally this needs to be slightly larger than the ping time between the client and the server otherwise you will run into problems with the returned data.
-    :type ssh_wait_time_window: ``float``
     :param ssh_host_key_verification: Change the behaviour of remote host key verification. Can be set to one of the following values, ``strict``, ``warn``, ``auto_add`` or ``none``.
     :type ssh_host_key_verification: :class:`redssh.enums.SSHHostKeyVerify`
     :param ssh_keepalive_interval: Enable or disable SSH keepalive packets, value is interval in seconds.
     :type ssh_keepalive_interval: ``float``
     '''
-    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_wait_time_window=None,
-        ssh_host_key_verification=enums.SSHHostKeyVerify.warn,ssh_keepalive_interval=0.0):
+    def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
+        ssh_keepalive_interval=0.0):
         self.debug = False
-        self._block_select_lock = multiprocessing.Lock()
+        self._block_lock = multiprocessing.RLock()
         self.encoding = encoding
-        self.tunnels = {'local':{},'remote':{}}
+        self.tunnels = {enums.TunnelType.local.value:{},enums.TunnelType.remote.value:{},enums.TunnelType.dynamic.value:{}}
         self.terminal = terminal
-        self.ssh_wait_time_window = ssh_wait_time_window
-        self.ssh_wait_time_window_floor = 0.05
         self.ssh_host_key_verification = ssh_host_key_verification
         self.ssh_keepalive_interval = ssh_keepalive_interval
+        self.request_pty = True
+        self.preferences = {}
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         if known_hosts==None:
             self.known_hosts_path = os.path.join(os.path.expanduser('~'),'.ssh','known_hosts')
         else:
             self.known_hosts_path = known_hosts
+
+    def __del__(self):
+        self.exit()
 
     def __check_for_attr__(self,attr):
         return(attr in self.__dict__)
@@ -86,46 +88,77 @@ class RedSSH(object):
             self._ssh_keepalive_event.wait(timeout=timeout)
 
 
-    def _block_select(self,timeout=None):
-        block_direction = self.session.block_directions()
-        if block_direction==0:
-            return(None)
-        self._block_select_lock.acquire()
-        rfds = []
-        wfds = []
-        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
-            rfds = [self.sock]
-        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
-            wfds = [self.sock]
-        select.select(rfds,wfds,[],timeout)
-        self._block_select_lock.release()
+    def _block_select(self):
+        with self._block_lock:
+            block_direction = self.session.block_directions()
+            if block_direction==0:
+                return(None)
+            rfds = []
+            wfds = []
+            if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
+                rfds = [self.sock]
+            if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
+                wfds = [self.sock]
+            select.select(rfds,wfds,[],0.001)
 
     def _block(self,func,*args,**kwargs):
-        out = func(*args,**kwargs)
+        with self._block_lock:
+            try:
+                out = func(*args,**kwargs)
+            except libssh2.exceptions.SocketSendError:
+                out = libssh2.LIBSSH2_ERROR_EAGAIN
+            except libssh2.exceptions.SocketRecvError:
+                out = libssh2.LIBSSH2_ERROR_EAGAIN
         while out==libssh2.LIBSSH2_ERROR_EAGAIN:
             self._block_select()
-            out = func(*args,**kwargs)
+            with self._block_lock:
+                try:
+                    out = func(*args,**kwargs)
+                except libssh2.exceptions.SocketSendError:
+                    out = libssh2.LIBSSH2_ERROR_EAGAIN
+                except libssh2.exceptions.SocketRecvError:
+                    out = libssh2.LIBSSH2_ERROR_EAGAIN
         return(out)
 
-    def _block_write(self,func,data,timeout=None):
+    def _block_write(self,func,data):
         data_len = len(data)
         total_written = 0
         while total_written<data_len:
-            (rc,bytes_written) = func(data[total_written:])
+            with self._block_lock:
+                try:
+                    (rc,bytes_written) = func(data[total_written:])
+                except libssh2.exceptions.SocketSendError:
+                    (rc,bytes_written) = libssh2.LIBSSH2_ERROR_EAGAIN,0
+                except libssh2.exceptions.SocketRecvError:
+                    (rc,bytes_written) = libssh2.LIBSSH2_ERROR_EAGAIN,0
             total_written+=bytes_written
             if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
-                self._block_select(timeout)
+                self._block_select()
+        return(total_written)
 
-    def _read_iter(self,func,timeout=None):
+    def _read_iter(self,func,block=False):
         pos = 0
         remainder_len = 0
         remainder = b''
-        (size,data) = func()
+        with self._block_lock:
+            try:
+                (size,data) = func()
+            except libssh2.exceptions.SocketSendError:
+                size = libssh2.LIBSSH2_ERROR_EAGAIN
+            except libssh2.exceptions.SocketRecvError:
+                size = libssh2.LIBSSH2_ERROR_EAGAIN
         while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
             if size==libssh2.LIBSSH2_ERROR_EAGAIN:
-                self._block_select(timeout)
-                (size,data) = func()
-            if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
+                self._block_select()
+                with self._block_lock:
+                    try:
+                        (size,data) = func()
+                    except libssh2.exceptions.SocketSendError:
+                        size = libssh2.LIBSSH2_ERROR_EAGAIN
+                    except libssh2.exceptions.SocketRecvError:
+                        size = libssh2.LIBSSH2_ERROR_EAGAIN
+            # if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
+            if size==libssh2.LIBSSH2_ERROR_EAGAIN and block==False:
                 return(b'')
             while size>0:
                 while pos<size:
@@ -136,7 +169,14 @@ class RedSSH(object):
                     else:
                         yield(data[pos:size])
                     pos = size
-                (size,data) = func()
+                self._block_select()
+                with self._block_lock:
+                    try:
+                        (size,data) = func()
+                    except libssh2.exceptions.SocketSendError:
+                        size = libssh2.LIBSSH2_ERROR_EAGAIN
+                    except libssh2.exceptions.SocketRecvError:
+                        size = libssh2.LIBSSH2_ERROR_EAGAIN
                 pos = 0
         if remainder_len>0:
             yield(remainder)
@@ -214,23 +254,18 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('past_login')==False:
             if sock==None:
-                ping_timer = time.time()
                 self.sock = socket.create_connection((hostname,port),timeout)
-                ping_timer = float(time.time()-ping_timer)
-                if self.ssh_wait_time_window==None:
-                    self.ssh_wait_time_window = ping_timer
                 self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
             else:
                 self.sock = sock
             self.session = libssh2.Session()
             # self.session.publickey_init()
-            ping_timer = time.time()
+
+            if 'method_pref' in dir(self.session) and not self.preferences=={}:
+                for pref in self.preferences:
+                    self.session.method_pref(pref, self.preferences[pref])
+
             self.session.handshake(self.sock)
-            ping_timer = float(time.time()-ping_timer)/3.2
-            if self.ssh_wait_time_window==None:
-                self.ssh_wait_time_window = ping_timer
-            if self.ssh_wait_time_window<self.ssh_wait_time_window_floor:
-                self.ssh_wait_time_window = self.ssh_wait_time_window_floor
             # print(self.ssh_wait_time_window)
 
             self.check_host_key(hostname,port)
@@ -256,14 +291,15 @@ class RedSSH(object):
                             if passphrase==None:
                                 passphrase = ''
                             for private_key in key_filepath:
-                                auth_types_tried.append('publickey')
-                                try:
-                                    self.session.userauth_publickey_fromfile(username,private_key,passphrase)
-                                    if self.session.userauth_authenticated()==True:
-                                        authenticated = True
-                                        break
-                                except:
-                                    pass
+                                if os.path.exists(private_key) and os.path.isfile(private_key):
+                                    auth_types_tried.append('publickey')
+                                    try:
+                                        self.session.userauth_publickey_fromfile(username,private_key,passphrase)
+                                        if self.session.userauth_authenticated()==True:
+                                            authenticated = True
+                                            break
+                                    except:
+                                        pass
                     # elif host_based==True:
                         # auth_types_tried.append('hostbased')
                         # try:
@@ -285,24 +321,26 @@ class RedSSH(object):
                             pass
                     if auth_request=='keyboard-interactive':
                         auth_types_tried.append('keyboard-interactive') # not implemented in ssh2-python 0.18.0
-                        try:
-                            self.session.userauth_keyboardinteractive(username,password)
-                            if self.session.userauth_authenticated()==True:
-                                authenticated = True
-                                break
-                        except:
-                            pass
+                        # bugged in ssh2-python's implementation for 1.9.0 of libssh2
+                        # try:
+                            # self.session.userauth_keyboardinteractive(username,password)
+                            # if self.session.userauth_authenticated()==True:
+                                # authenticated = True
+                                # break
+                        # except:
+                            # pass
             if authenticated==False:
                 raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
 
             self.session.set_blocking(False)
             if not self.ssh_keepalive_interval==0:
-                self.session.keepalive_config(False, self.ssh_keepalive_interval)
+                self.session.keepalive_config(True, self.ssh_keepalive_interval)
                 self._ssh_keepalive_thread = threading.Thread(target=self.ssh_keepalive)
                 self._ssh_keepalive_event = threading.Event()
                 self._ssh_keepalive_thread.start()
             self.channel = self._block(self.session.open_session)
-            self._block(self.channel.pty,self.terminal)
+            if self.request_pty==True:
+                self._block(self.channel.pty,self.terminal)
             self._block(self.channel.shell)
             self.past_login = True
             self.device_init()
@@ -321,14 +359,10 @@ class RedSSH(object):
         Recieve data from the remote session.
         Only works if the current session has made it past the login process.
 
-        :param wait_time: Block for this long to recieve data from the remote session.
-        :type wait_time: ``float``
         :return: ``generator`` - A generator of byte strings that has been recieved in the time given.
         '''
-        if wait_time==None:
-            wait_time = self.ssh_wait_time_window
         if self.past_login==True:
-            return(self._read_iter(self.channel.read,wait_time))
+            return(self._read_iter(self.channel.read))
 
     def send(self,string):
         '''
@@ -356,12 +390,20 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login') and self.__check_for_attr__('sftp')==False:
             self.sftp = sftp.RedSFTP(self)
 
-    def local_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
+    def start_scp(self):
+        '''
+        Start the SCP client.
+        '''
+        if self.__check_for_attr__('past_login') and self.__check_for_attr__('scp')==False:
+            self.scp = scp.RedSCP(self)
+
+
+    def local_tunnel(self,local_port,remote_host,remote_port,bind_addr='',error_level=enums.TunnelErrorLevel.warn):
         '''
 
-        Forwards a port the same way the ``-L`` option does for the OpenSSH client.
+        Forwards a port on the remote machine the same way the ``-L`` option does for the OpenSSH client.
 
-        :param local_port: The local port on the local machine to connect to.
+        :param local_port: The local port on the local machine to bind to.
         :type local_port: ``int``
         :param remote_host: The remote host to connect to via the remote machine.
         :type remote_host: ``str``
@@ -369,36 +411,41 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
+        :param error_level: The level of verbosity that errors in tunnel threads will use.
+        :type error_level: ``redssh.enums.TunnelErrorLevel``
         :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server,tun_server_port)`` this is so you can control the tunnel's thread if you need to.
         '''
-        option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
-        if not option_string in self.tunnels['local']:
+        assert isinstance(remote_host,type(''))
+        assert isinstance(remote_port,type(0))
+        option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
+        if not option_string in self.tunnels[enums.TunnelType.local.value]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
 
-            class SubHander(tunnelling.LocalPortHandler):
+            class SubHander(tunnelling.LocalPortServerHandler):
                 caller = self
                 chain_host = remote_host
                 chain_port = remote_port
                 terminate = thread_terminate
                 wchan = wait_for_chan
 
-            tun_server = tunnelling.LocalPortServer((bind_addr,local_port),SubHander,self,remote_host,remote_port,wait_for_chan)
+            tun_server = tunnelling.LocalPortServer((bind_addr,local_port),SubHander,self,remote_host,remote_port,wait_for_chan,error_level)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
-            tun_thread.name = 'local:'+option_string
+            tun_thread.name = enums.TunnelType.local.value+':'+option_string
             tun_thread.start()
             wait_for_chan.wait()
             if local_port==0:
                 local_port = tun_server.socket.getsockname()[1]
                 option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
-            self.tunnels['local'][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
-        return(self.tunnels['local'][option_string])
+                tun_thread.name = enums.TunnelType.local.value+':'+option_string
+            self.tunnels[enums.TunnelType.local.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
+        return(self.tunnels[enums.TunnelType.local.value][option_string])
 
-    def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr=''):
+    def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr='',error_level=enums.TunnelErrorLevel.warn):
         '''
 
-        Forwards a port the same way the ``-R`` option does for the OpenSSH client.
+        Forwards a port to the remote machine via the local machine the same way the ``-R`` option does for the OpenSSH client.
 
         :param local_port: The local port on the remote side to connect to.
         :type local_port: ``int``
@@ -406,19 +453,91 @@ class RedSSH(object):
         :type remote_host: ``str``
         :param remote_port: The remote host's port to connect to via the local machine.
         :type remote_port: ``int``
+        :param error_level: The level of verbosity that errors in tunnel threads will use.
+        :type error_level: ``redssh.enums.TunnelErrorLevel``
         :return: ``tuple`` of ``(tun_thread,thread_terminate,None,None)`` this is so you can control the tunnel's thread if you need to.
         '''
-        option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
-        if not option_string in self.tunnels['remote']:
+        option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
+        if not option_string in self.tunnels[enums.TunnelType.remote.value]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
-            tun_thread = threading.Thread(target=tunnelling.remote_handler,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan))
+            tun_thread = threading.Thread(target=tunnelling.remote_tunnel_server,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan,error_level))
             tun_thread.daemon = True
-            tun_thread.name = 'remote:'+option_string
+            tun_thread.name = enums.TunnelType.remote.value+':'+option_string
             tun_thread.start()
             wait_for_chan.wait()
-            self.tunnels['remote'][option_string] = (tun_thread,thread_terminate,None,None)
-        return(self.tunnels['remote'][option_string])
+            self.tunnels[enums.TunnelType.remote.value][option_string] = (tun_thread,thread_terminate,None,None)
+        return(self.tunnels[enums.TunnelType.remote.value][option_string])
+
+    def dynamic_tunnel(self,local_port,bind_addr='',error_level=enums.TunnelErrorLevel.warn):
+        '''
+
+        Opens a SOCKS proxy AKA gateway or dynamic port the same way the ``-D`` option does for the OpenSSH client.
+
+        :param local_port: The local port on the local machine to bind to.
+        :type local_port: ``int``
+        :param bind_addr: The bind address on this machine to bind to for the local port.
+        :type bind_addr: ``str``
+        :param error_level: The level of verbosity that errors in tunnel threads will use.
+        :type error_level: ``redssh.enums.TunnelErrorLevel``
+        :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server,tun_server_port)`` this is so you can control the tunnel's thread if you need to.
+        '''
+        option_string = str(local_port)
+        if not option_string in self.tunnels[enums.TunnelType.dynamic.value]:
+            wait_for_chan = threading.Event()
+            thread_terminate = threading.Event()
+
+            class SubHander(tunnelling.LocalPortServerHandler):
+                caller = self
+                chain_host = None
+                chain_port = None
+                terminate = thread_terminate
+                wchan = wait_for_chan
+
+            tun_server = tunnelling.LocalPortServer((bind_addr,local_port),SubHander,self,None,None,wait_for_chan,error_level)
+            tun_thread = threading.Thread(target=tun_server.serve_forever)
+            tun_thread.daemon = True
+            tun_thread.name = enums.TunnelType.dynamic.value+':'+option_string
+            tun_thread.start()
+            wait_for_chan.wait()
+            if local_port==0:
+                local_port = tun_server.socket.getsockname()[1]
+                option_string = str(local_port)
+                tun_thread.name = enums.TunnelType.dynamic.value+':'+option_string
+            self.tunnels[enums.TunnelType.dynamic.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
+        return(self.tunnels[enums.TunnelType.dynamic.value][option_string])
+
+    def shutdown_tunnel(self,tunnel_type,sport,rhost,rport,bind_addr=''):
+        '''
+
+        Closes an open tunnel.
+        Provide the same arguments to this that was given for openning the tunnel.
+
+        Examples:
+        `local_tunnel(9999,'localhost',8888)` would be `shutdown_tunnel(redssh.enums.TunnelType.local,9999,'localhost',8888)`
+        `remote_tunnel(7777,'localhost',8888)` would be `shutdown_tunnel(redssh.enums.TunnelType.remote,7777,'localhost',8888)`
+        `dynamic_tunnel(9999)` would be `shutdown_tunnel(redssh.enums.TunnelType.dynamic,9999,None,None)`
+
+        :param tunnel_type: The tunnel type to shutdown.
+        :type tunnel_type: ``redssh.enums.TunnelType``
+        :param sport: The bound port for local and dynamic tunnels or the local port on the remote side for remote tunnels.
+        :type sport: ``str``
+        :param rhost: The remote host for local and remote tunnels.
+        :type rhost: ``str``
+        :param rport: The remote port for local and remote tunnels.
+        :type rport: ``int``
+        :param bind_addr: The bind address used for local and dynamic tunnels.
+        :type bind_addr: ``str``
+        :return: ``None``
+        '''
+        if tunnel_type==enums.TunnelType.dynamic:
+            option_string = str(sport)
+        else:
+            option_string = str(bind_addr)+':'+str(sport)+':'+rhost+':'+str(rport)
+        if option_string in self.tunnels[tunnel_type.value]:
+            (thread,queue,server,server_port) = self.tunnels[tunnel_type.value][option_string]
+            self.__shutdown_thread__(thread,queue,server)
+            del self.tunnels[tunnel_type.value][option_string]
 
 
     def close_tunnels(self):

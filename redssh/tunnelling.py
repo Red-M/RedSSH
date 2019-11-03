@@ -16,12 +16,15 @@
 # 51 Franklin Street,Fifth Floor,Boston,MA 02110-1301 USA.
 
 
-import multiprocessing
-import threading
-import socket
-import select
+import sys
 import time
+import select
+import struct
+import socket
+import threading
+import multiprocessing
 
+from redssh import enums
 from redssh import libssh2
 
 try:
@@ -33,113 +36,171 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self,bind_arg,handler,caller,remote_host,remote_port,wchan):
+    def __init__(self,bind_arg,handler,caller,remote_host,remote_port,wchan,error_level):
         self.caller = caller
         self.remote_host = remote_host
         self.remote_port = remote_port
         self.wchan = wchan
-        self.wchan_lock = multiprocessing.Lock()
+        self.error_level = error_level
+        self.socks_server = (self.remote_host==None and self.remote_port==None)
+        self.socks_version = 5
         super().__init__(bind_arg,handler)
 
     def server_activate(self):
-        self.chan = self.caller._block(self.caller.session.direct_tcpip,self.remote_host,self.remote_port)
         self.wchan.set()
         self.socket.listen(self.request_queue_size)
 
 
-class LocalPortHandler(SocketServer.BaseRequestHandler):
-
-    def _ssh_block(self,func,*args,**kwargs):
-        self.server.wchan_lock.acquire()
-        response = self.caller._block(func,*args,**kwargs)
-        self.server.wchan_lock.release()
-        return(response)
-
-    def _ssh_block_write(self,func,data,timeout=None):
-        self.server.wchan_lock.acquire()
-        self.caller._block_write(func,data,timeout=timeout)
-        self.server.wchan_lock.release()
-
-    def _ssh_read_iter(self,func,timeout=None):
-        self.server.wchan_lock.acquire()
-        response = self.caller._read_iter(func,timeout=timeout)
-        self.server.wchan_lock.release()
-        return(response)
-
-
+class LocalPortServerHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         try:
-            while self.terminate.is_set()==False and self._ssh_block(self.server.chan.eof)==False:
-                (r,w,x) = select.select([self.request,self.caller.sock],[],[],self.caller.ssh_wait_time_window)
-                if self.terminate.is_set()==True or self._ssh_block(self.server.chan.eof)==True:
-                    break
-                if self.request in r and self.terminate.is_set()==False:
-                    data = self.request.recv(1024)
-                    if len(data)==0:
-                        break
-                    self._ssh_block_write(self.server.chan.write,data)
-                if self.caller.sock in r and self.terminate.is_set()==False:
-                    for buf in self._ssh_read_iter(self.server.chan.read,self.caller.ssh_wait_time_window):
-                        self.request.send(buf)
-                if self.terminate.is_set()==True or self._ssh_block(self.server.chan.eof)==True:
-                    break
-            self.request.close()
+            if self.server.socks_server==False:
+                local_handler(self.caller,self.terminate,self.request,self.server.remote_host,self.server.remote_port)
+            elif self.server.socks_server==True:
+                # https://github.com/rushter/socks5
+                header = self.request.recv(2)
+                version, nmethods = struct.unpack("!BB", header)
+                assert version == self.server.socks_version
+                assert nmethods > 0
+                methods = self.get_available_methods(nmethods)
+                self.request.sendall(struct.pack("!BB", self.server.socks_version, 0))
+                version, cmd, _, address_type = struct.unpack("!BBBB", self.request.recv(4))
+                assert version == self.server.socks_version
+                if address_type == 1:  # IPv4
+                    address = socket.inet_ntoa(self.request.recv(4))
+                elif address_type == 3:  # Domain name
+                    domain_length = ord(self.request.recv(1)[0])
+                    address = self.request.recv(domain_length)
+                port = struct.unpack('!H', self.request.recv(2))[0]
+                try:
+                    if cmd == 1:  # CONNECT
+                        remote = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        remote.connect((address, port))
+                        bind_address = remote.getsockname()
+                    else:
+                        self.server.close_request(self.request)
+                    c_addr = struct.unpack("!I", socket.inet_aton(bind_address[0]))[0]
+                    c_port = bind_address[1]
+                    reply = struct.pack("!BBBBIH", self.server.socks_version, 0, 0, address_type, c_addr, c_port)
+                except Exception as err:
+                    self.handle_error(self.request,)
+                    reply = self.generate_failed_reply(address_type, 5)
+                self.request.sendall(reply)
+                if reply[1] == 0 and cmd == 1:
+                    local_handler(self.caller,self.terminate,self.request,address,port)
+                else:
+                    self.server.close_request(self.request)
         finally:
             if self.terminate.is_set()==True:
                 self.server.shutdown()
 
+    def handle_error(self,request,client_address):
+        error_level = self.server.error_level
+        if error_level==enums.TunnelErrorLevel.warn:
+            print('Exception happened during processing of request from',client_address,file=sys.stderr)
+            print(sys.last_value)
+        elif error_level==enums.TunnelErrorLevel.debug:
+            super().handle_error(self,request,client_address)
 
 
-def remote_handler(self,host,port,bind_addr,local_port,terminate,wait_for_chan):
-    listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
-    wait_for_chan.set()
-    while terminate.is_set()==False and self._block(self.channel.eof)==False:
-        try:
-            chan = listener.forward_accept()
-            # print('chan_init')
-        except:
-            continue
-        if chan==libssh2.LIBSSH2_ERROR_EAGAIN:
-            self._block_select(self.ssh_wait_time_window)
-        else:
-            try:
-                req_wait_calc = time.time()
-                request = socket.create_connection((host,port))
-                req_wait = time.time()-req_wait_calc
-            except Exception as e:
-                self._block(chan.close)
-                return()
-            for buf in self._read_iter(chan.read,req_wait):
-                request.send(buf)
-            while terminate.is_set()==False and self._block(chan.eof)==False:
-                # print('sel1')
-                (r,w,x) = select.select([self.sock,request],[],[],req_wait)
-                # print('sel2')
-                if terminate.is_set()==True or self._block(chan.eof)==True:
-                    return()
-                if self.sock in r:
-                    sent = 0
-                    for buf in self._read_iter(chan.read,req_wait):
-                        request.send(buf)
-                        sent+=len(buf)
-                        if terminate.is_set()==True or self._block(chan.eof)==True:
-                            break
-                    if terminate.is_set()==True or self._block(chan.eof)==True:
-                        return()
-                    if sent==0:
-                        # print('chan_break')
-                        break
-                if request in r:
-                    # print('req')
-                    data = request.recv(1024)
-                    self._block_write(chan.write,data)
-                    if len(data)==0:
-                        # print('req_break')
-                        break
-            # print('term')
-            self._block(chan.close)
+    def get_available_methods(self, n):
+        methods = []
+        for i in range(n):
+            methods.append(ord(self.request.recv(1)))
+        return methods
+
+    def generate_failed_reply(self, address_type, error_number):
+        return(struct.pack("!BBBBIH", self.server.socks_version, error_number, 0, address_type, 0, 0))
+
+
+def local_handler(self,terminate,request,remote_host,remote_port):
+    chan = self._block(self.session.direct_tcpip,remote_host,remote_port)
+    chan_eof = False
+    while terminate.is_set()==False and chan_eof!=True:
+        (r,w,x) = select.select([request,self.sock],[],[],0.001)
+        no_data = False
+        if terminate.is_set()==True:
+            no_data = True
+            break
+        for buf in self._read_iter(chan.read):
+            if terminate.is_set()==True:
+                no_data = True
+                break
+            if request.send(buf)<=0 or chan_eof==True:
+                no_data = True
+                break
+        if no_data==True:
+            break
+        if request in r and terminate.is_set()==False and chan_eof!=True:
+            if self._block_write(chan.write,request.recv(1024))<=0 or terminate.is_set()==True:
+                break
+        chan_eof = self._block(chan.eof)
+        if terminate.is_set()==True or chan_eof==True:
             break
 
 
+    if terminate.is_set()==True and chan.eof()==False:
+        self._block(chan.close)
+    request.close()
+
+
+
+
+
+
+def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_chan,error_level):
+    listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
+    wait_for_chan.set()
+    threads = []
+    while terminate.is_set()==False:
+        with self._block_lock:
+            chan = listener.forward_accept()
+        while chan==libssh2.LIBSSH2_ERROR_EAGAIN and terminate.is_set()==False:
+            self._block_select()
+            with self._block_lock:
+                chan = listener.forward_accept()
+        if terminate.is_set()==True:
+            break
+        thread = threading.Thread(target=remote_handle,args=(self,chan,host,port,terminate,error_level))
+        thread.name = 'remote_handle'
+        threads.append(thread)
+        thread.start()
+    terminate.wait()
+    for thread in threads:
+        thread.join()
+
+
+def remote_handle(self,chan,host,port,terminate,error_level):
+    chan_eof = False
+    while terminate.is_set()==False and chan_eof!=True:
+        try:
+            request = socket.create_connection((host,port))
+        except Exception as e:
+            self._block(chan.close)
+            return()
+        for buf in self._read_iter(chan.read):
+            if request.send(buf)<=0:
+                break
+        while terminate.is_set()==False and chan_eof!=True:
+            (r,w,x) = select.select([self.sock,request],[],[],0.001)
+            if terminate.is_set()==True:
+                request.close()
+                self._block(chan.close)
+                return()
+            no_data = False
+            for buf in self._read_iter(chan.read):
+                if request.send(buf)<=0:
+                    no_data = True
+                    break
+            if no_data==True:
+                break
+            if request in r:
+                if self._block_write(chan.write,request.recv(1024))<=0:
+                    break
+            chan_eof = self._block(chan.eof)
+        request.close()
+        if terminate.is_set()==True:
+            self._block(chan.close)
+            break
 
 
