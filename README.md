@@ -29,10 +29,9 @@ I've found other automation libraries or solutions lacking, such as:
 
 
 # TO DO
-- Unit tests
-- Host based authentication
-- Host key checking
+- SCP unit tests
+- More error based unit tests
 - More examples
-- Make SCP more robust
+- Host based authentication
 - X11 forwarding
 
