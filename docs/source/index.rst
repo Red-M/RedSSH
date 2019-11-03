@@ -12,6 +12,7 @@ Welcome to RedSSH's documentation!
 
    redssh
    sftp
+   scp
    enums
    exceptions
 
