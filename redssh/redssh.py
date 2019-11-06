@@ -58,7 +58,8 @@ class RedSSH(object):
         self.ssh_host_key_verification = ssh_host_key_verification
         self.ssh_keepalive_interval = ssh_keepalive_interval
         self.request_pty = True
-        self.preferences = {}
+        self.method_preferences = {}
+        self.set_flags = {}
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         if known_hosts==None:
@@ -103,21 +104,11 @@ class RedSSH(object):
 
     def _block(self,func,*args,**kwargs):
         with self._block_lock:
-            try:
-                out = func(*args,**kwargs)
-            except libssh2.exceptions.SocketSendError:
-                out = libssh2.LIBSSH2_ERROR_EAGAIN
-            except libssh2.exceptions.SocketRecvError:
-                out = libssh2.LIBSSH2_ERROR_EAGAIN
+            out = func(*args,**kwargs)
         while out==libssh2.LIBSSH2_ERROR_EAGAIN:
             self._block_select()
             with self._block_lock:
-                try:
-                    out = func(*args,**kwargs)
-                except libssh2.exceptions.SocketSendError:
-                    out = libssh2.LIBSSH2_ERROR_EAGAIN
-                except libssh2.exceptions.SocketRecvError:
-                    out = libssh2.LIBSSH2_ERROR_EAGAIN
+                out = func(*args,**kwargs)
         return(out)
 
     def _block_write(self,func,data):
@@ -125,12 +116,7 @@ class RedSSH(object):
         total_written = 0
         while total_written<data_len:
             with self._block_lock:
-                try:
-                    (rc,bytes_written) = func(data[total_written:])
-                except libssh2.exceptions.SocketSendError:
-                    (rc,bytes_written) = libssh2.LIBSSH2_ERROR_EAGAIN,0
-                except libssh2.exceptions.SocketRecvError:
-                    (rc,bytes_written) = libssh2.LIBSSH2_ERROR_EAGAIN,0
+                (rc,bytes_written) = func(data[total_written:])
             total_written+=bytes_written
             if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
                 self._block_select()
@@ -141,22 +127,12 @@ class RedSSH(object):
         remainder_len = 0
         remainder = b''
         with self._block_lock:
-            try:
-                (size,data) = func()
-            except libssh2.exceptions.SocketSendError:
-                size = libssh2.LIBSSH2_ERROR_EAGAIN
-            except libssh2.exceptions.SocketRecvError:
-                size = libssh2.LIBSSH2_ERROR_EAGAIN
+            (size,data) = func()
         while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
             if size==libssh2.LIBSSH2_ERROR_EAGAIN:
                 self._block_select()
                 with self._block_lock:
-                    try:
-                        (size,data) = func()
-                    except libssh2.exceptions.SocketSendError:
-                        size = libssh2.LIBSSH2_ERROR_EAGAIN
-                    except libssh2.exceptions.SocketRecvError:
-                        size = libssh2.LIBSSH2_ERROR_EAGAIN
+                    (size,data) = func()
             # if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
             if size==libssh2.LIBSSH2_ERROR_EAGAIN and block==False:
                 return(b'')
@@ -171,12 +147,7 @@ class RedSSH(object):
                     pos = size
                 self._block_select()
                 with self._block_lock:
-                    try:
-                        (size,data) = func()
-                    except libssh2.exceptions.SocketSendError:
-                        size = libssh2.LIBSSH2_ERROR_EAGAIN
-                    except libssh2.exceptions.SocketRecvError:
-                        size = libssh2.LIBSSH2_ERROR_EAGAIN
+                    (size,data) = func()
                 pos = 0
         if remainder_len>0:
             yield(remainder)
@@ -187,6 +158,22 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('channel')==True:
             return(self._block(self.channel.eof))
+
+    def methods(self, method):
+        '''
+        Returns what value was settled on for session negotiation.
+        '''
+        if self.__check_for_attr__('session')==True:
+            if 'methods' in dir(self.session):
+                return(self._block(self.session.methods,method))
+
+    def supported_algs(self, method, algs):
+        '''
+        Returns what values are available for session negotiation.
+        '''
+        if self.__check_for_attr__('session')==True:
+            if 'supported_algs' in dir(self.session):
+                return(self._block(self.session.supported_algs,method,algs))
 
     def check_host_key(self,hostname,port):
         self.known_hosts = self.session.knownhost_init()
@@ -224,7 +211,7 @@ class RedSSH(object):
             self.known_hosts.addc(hostname,host_key,key_bitmask)
             self.known_hosts.writefile(self.known_hosts_path)
 
-    def connect(self,hostname,port=22,username=None,password=None,allow_agent=True,
+    def connect(self,hostname,port=22,username=None,password=None,allow_agent=False,
         #host_based=None,
         key_filepath=None,passphrase=None,look_for_keys=True,sock=None,timeout=None):
         '''
@@ -261,12 +248,16 @@ class RedSSH(object):
             self.session = libssh2.Session()
             # self.session.publickey_init()
 
-            if 'method_pref' in dir(self.session) and not self.preferences=={}:
-                for pref in self.preferences:
-                    self.session.method_pref(pref, self.preferences[pref])
+            if 'method_pref' in dir(self.session) and not self.method_preferences=={}:
+                for pref in self.method_preferences:
+                    self.session.method_pref(pref, self.method_preferences[pref])
+
+            if 'flag' in dir(self.session) and not self.set_flags=={}:
+                for flag in self.set_flags:
+                    self.session.flag(flag, self.set_flags[flag])
+
 
             self.session.handshake(self.sock)
-            # print(self.ssh_wait_time_window)
 
             self.check_host_key(hostname,port)
 
