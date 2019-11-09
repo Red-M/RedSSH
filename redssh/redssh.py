@@ -164,7 +164,7 @@ class RedSSH(object):
         Returns what value was settled on for session negotiation.
         '''
         if self.__check_for_attr__('session')==True:
-            if 'methods' in dir(self.session):
+            if 'methods' in dir(self.session): # remove once my fork is merged.
                 return(self._block(self.session.methods,method))
 
     def supported_algs(self, method, algs):
@@ -172,7 +172,7 @@ class RedSSH(object):
         Returns what values are available for session negotiation.
         '''
         if self.__check_for_attr__('session')==True:
-            if 'supported_algs' in dir(self.session):
+            if 'supported_algs' in dir(self.session): # remove once my fork is merged.
                 return(self._block(self.session.supported_algs,method,algs))
 
     def setenv(self, varname, value):
@@ -261,13 +261,15 @@ class RedSSH(object):
             self.session = libssh2.Session()
             # self.session.publickey_init()
 
-            if 'flag' in dir(self.session) and not self.set_flags=={}:
-                for flag in self.set_flags:
-                    self.session.flag(flag, self.set_flags[flag])
+            if 'flag' in dir(self.session): # remove once my fork is merged.
+                if not self.set_flags=={}:
+                    for flag in self.set_flags:
+                        self.session.flag(flag, self.set_flags[flag])
 
-            if 'method_pref' in dir(self.session) and not self.method_preferences=={}:
-                for pref in self.method_preferences:
-                    self.session.method_pref(pref, self.method_preferences[pref])
+            if 'method_pref' in dir(self.session): # remove once my fork is merged.
+                if not self.method_preferences=={}:
+                    for pref in self.method_preferences:
+                        self.session.method_pref(pref, self.method_preferences[pref])
 
             self.session.handshake(self.sock)
 
@@ -347,16 +349,6 @@ class RedSSH(object):
                 self._block(self.channel.pty,self.terminal)
             self._block(self.channel.shell)
             self.past_login = True
-            self.device_init()
-
-
-    def device_init(self,**kwargs):
-        '''
-        Override this function to intialize a device that does not simply drop to the terminal or a device will kick you out if you send any key/character other than an "acceptable" one.
-        This default one will work on linux quite well but devices such as pfsense or mikrotik might require this function and :func:`redexpect.RedExpect.get_unique_prompt` to be overriden.
-        '''
-        pass
-
 
     def read(self,wait_time=None):
         '''
