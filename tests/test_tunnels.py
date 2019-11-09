@@ -6,7 +6,7 @@ import requests
 import redssh
 import time
 
-from . import paramiko_server as ssh_server
+from .servers import paramiko_server as ssh_server
 
 
 class SSHSession(object):

@@ -29,7 +29,7 @@ class RedSCP(object):
             This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
         '''
         self.caller = caller
-        self._ls_re = re.compile(b'^(?P<file_type>[d\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\s+(?P<subitems>\d+)\s+(?P<owner_name>.+?)\s+(?P<group_name>.+?)\s+(?P<size>\d+)\s+(?P<datetime_m>[\d-]+\s+[\d\:\.]+)\s+(?P<tz>[\-\+]\d+)\s+(?P<file_name>.+?)$',re.MULTILINE)
+        self._ls_re = re.compile(b'^(?P<file_type>[d\\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\\s+(?P<subitems>\\d+)\\s+(?P<owner_name>.+?)\\s+(?P<group_name>.+?)\\s+(?P<size>\\d+)\\s+(?P<datetime_m>[\\d-]+\\s+[\\d\\:\\.]+)\\s+(?P<tz>[\\-\\+]\\d+)\\s+(?P<file_name>.+?)$',re.MULTILINE)
 
 
     def _exec(self, command):
@@ -97,7 +97,7 @@ class RedSCP(object):
         :type remote_path: ``str``
         :return: ``None``
         '''
-        # print('PUT: '+remote_path)
+        print('PUT: '+remote_path)
         stat = os.stat(local_path)
         f = open(local_path,'rb',2097152)
         chan = self.caller._block(self.caller.session.scp_send64,remote_path,stat.st_mode & 0o777,stat.st_size,stat.st_mtime,stat.st_atime)
@@ -124,7 +124,7 @@ class RedSCP(object):
                 data+=chunk
             return(data)
 
-    def put_folder(self,local_path,remote_path,recursive=False):
+    def put_folder(self,local_path,remote_path):
         '''
         Upload an entire folder via SCP to the remote session. Similar to ``scp /files/* user@host:/target``
         Also retains file permissions.
@@ -133,17 +133,16 @@ class RedSCP(object):
         :type local_path: ``str``
         :param remote_path: The remote path to upload the ``local_path`` to.
         :type remote_path: ``str``
-        :param recursive: Enable recursion down multiple directories from the top level of ``local_path``.
-        :type recursive: ``bool``
         '''
         for (dirpath,dirnames,filenames) in os.walk(local_path):
             for dirname in dirnames:
-                local_dir_path = os.path.join(local_path,dirname)
-                remote_dir_path = os.path.join(remote_path,dirname)
+                local_dir_path = os.path.join(dirpath,dirname)
+                tmp_rpath = local_dir_path[len(local_path):]
+                if tmp_rpath.startswith(os.path.sep):
+                    tmp_rpath = tmp_rpath[1:]
+                remote_dir_path = os.path.join(remote_path,tmp_rpath)
                 if not dirname.encode('utf8') in self.list_dir(remote_path)['dirs']:
                     self.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
-                if recursive==True:
-                    self.put_folder(local_dir_path,remote_dir_path,recursive=recursive)
             for filename in filenames:
                 local_file_path = os.path.join(dirpath,filename)
                 remote_file_base = local_file_path[len(local_path):0-len(filename)]

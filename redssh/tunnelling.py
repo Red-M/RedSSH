@@ -114,7 +114,7 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
 
 
 def local_handler(self,terminate,request,remote_host,remote_port):
-    chan = self._block(self.session.direct_tcpip,remote_host,remote_port)
+    chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
     chan_eof = False
     while terminate.is_set()==False and chan_eof!=True:
         (r,w,x) = select.select([request,self.sock],[],[],0.001)
@@ -138,7 +138,6 @@ def local_handler(self,terminate,request,remote_host,remote_port):
         if terminate.is_set()==True or chan_eof==True:
             break
 
-
     if terminate.is_set()==True and chan.eof()==False:
         self._block(chan.close)
     request.close()
@@ -153,13 +152,16 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
     wait_for_chan.set()
     threads = []
     while terminate.is_set()==False:
-        with self._block_lock:
-            chan = listener.forward_accept()
-        while chan==libssh2.LIBSSH2_ERROR_EAGAIN and terminate.is_set()==False:
-            self._block_select()
+        try:
             with self._block_lock:
-                if terminate.is_set()==False:
-                    chan = listener.forward_accept()
+                chan = listener.forward_accept()
+            while chan==libssh2.LIBSSH2_ERROR_EAGAIN and terminate.is_set()==False:
+                self._block_select()
+                with self._block_lock:
+                    if terminate.is_set()==False:
+                        chan = listener.forward_accept()
+        except libssh2.exceptions.ChannelUnknownError:
+            break
         if terminate.is_set()==True:
             break
         thread = threading.Thread(target=remote_handle,args=(self,chan,host,port,terminate,error_level))

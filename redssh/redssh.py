@@ -58,8 +58,8 @@ class RedSSH(object):
         self.ssh_host_key_verification = ssh_host_key_verification
         self.ssh_keepalive_interval = ssh_keepalive_interval
         self.request_pty = True
-        self.method_preferences = {}
         self.set_flags = {}
+        self.method_preferences = {}
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         if known_hosts==None:
@@ -175,6 +175,19 @@ class RedSSH(object):
             if 'supported_algs' in dir(self.session):
                 return(self._block(self.session.supported_algs,method,algs))
 
+    def setenv(self, varname, value):
+        '''
+        Set an environment variable on the channel.
+
+        :param varname: Name of environment variable to set on the remote channel.
+        :type varname: ``str``
+        :param value: Value to set ``varname`` to.
+        :type value: ``str``
+        :return: ``None``
+        '''
+        if self.__check_for_attr__('past_login'):
+            self._block(self.channel.setenv,varname,value)
+
     def check_host_key(self,hostname,port):
         self.known_hosts = self.session.knownhost_init()
         if os.path.exists(self.known_hosts_path)==True:
@@ -248,14 +261,13 @@ class RedSSH(object):
             self.session = libssh2.Session()
             # self.session.publickey_init()
 
-            if 'method_pref' in dir(self.session) and not self.method_preferences=={}:
-                for pref in self.method_preferences:
-                    self.session.method_pref(pref, self.method_preferences[pref])
-
             if 'flag' in dir(self.session) and not self.set_flags=={}:
                 for flag in self.set_flags:
                     self.session.flag(flag, self.set_flags[flag])
 
+            if 'method_pref' in dir(self.session) and not self.method_preferences=={}:
+                for pref in self.method_preferences:
+                    self.session.method_pref(pref, self.method_preferences[pref])
 
             self.session.handshake(self.sock)
 
@@ -313,13 +325,14 @@ class RedSSH(object):
                     if auth_request=='keyboard-interactive':
                         auth_types_tried.append('keyboard-interactive') # not implemented in ssh2-python 0.18.0
                         # bugged in ssh2-python's implementation for 1.9.0 of libssh2
-                        # try:
-                            # self.session.userauth_keyboardinteractive(username,password)
-                            # if self.session.userauth_authenticated()==True:
-                                # authenticated = True
-                                # break
-                        # except:
-                            # pass
+                        # but fixed in my fork. :)
+                        try:
+                            self.session.userauth_keyboardinteractive(username,password)
+                            if self.session.userauth_authenticated()==True:
+                                authenticated = True
+                                break
+                        except:
+                            pass
             if authenticated==False:
                 raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
 
@@ -377,6 +390,8 @@ class RedSSH(object):
     def start_sftp(self):
         '''
         Start the SFTP client.
+
+        :return: ``None``
         '''
         if self.__check_for_attr__('past_login') and self.__check_for_attr__('sftp')==False:
             self.sftp = sftp.RedSFTP(self)
@@ -384,6 +399,8 @@ class RedSSH(object):
     def start_scp(self):
         '''
         Start the SCP client.
+
+        :return: ``None``
         '''
         if self.__check_for_attr__('past_login') and self.__check_for_attr__('scp')==False:
             self.scp = scp.RedSCP(self)
@@ -538,11 +555,12 @@ class RedSSH(object):
         '''
         Closes all SSH tunnels if any are open.
         '''
-        for thread_type in self.tunnels:
-            for option_string in self.tunnels[thread_type]:
-                (thread,queue,server,server_port) = self.tunnels[thread_type][option_string]
-                self.__shutdown_thread__(thread,queue,server)
-        del self.tunnels
+        if self.__check_for_attr__('tunnels')==True:
+            for thread_type in self.tunnels:
+                for option_string in self.tunnels[thread_type]:
+                    (thread,queue,server,server_port) = self.tunnels[thread_type][option_string]
+                    self.__shutdown_thread__(thread,queue,server)
+            del self.tunnels
 
     def exit(self):
         '''
@@ -556,8 +574,12 @@ class RedSSH(object):
                 self.close_tunnels()
                 if not self._ssh_keepalive_thread==None:
                     self.__shutdown_thread__(self._ssh_keepalive_thread,self._ssh_keepalive_event,None)
-                self._block(self.channel.close)
-                self._block(self.session.disconnect)
+                try:
+                    self._block(self.channel.close)
+                    self._block(self.session.disconnect)
+                except:
+                    pass
                 self.sock.close()
-                del self.sock,self.session,self.channel,self.past_login,self._ssh_keepalive_thread
-                # ssh2.utils.ssh2_exit()
+                del self.channel,self.past_login,self._ssh_keepalive_thread
+                del self.session
+                del self.sock

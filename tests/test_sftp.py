@@ -8,7 +8,7 @@ import multiprocessing
 import paramiko
 import redssh
 
-from . import paramiko_server as ssh_server
+from .servers import paramiko_server as ssh_server
 
 
 class SSHSession(object):
@@ -37,6 +37,8 @@ class RedSSHUnitTest(unittest.TestCase):
         self.ssh_sessions = []
         self.server_hostname = '127.0.0.1'
         self.cur_dir = os.path.expanduser(os.path.dirname(__file__))
+        # self.test_dir = os.path.join(self.cur_dir,'file_tests')
+        self.test_dir = self.cur_dir
         test_dir = os.path.join('test_dir','sftp')
         self.remote_dir = test_dir
         self.real_remote_dir = os.path.sep+os.path.join('tmp',test_dir)
@@ -86,24 +88,44 @@ class RedSSHUnitTest(unittest.TestCase):
     def test_copy_and_open(self):
         sshs = self.start_ssh_session()
         sshs.rs.start_sftp()
-        sshs.rs.sftp.put_folder(self.cur_dir,self.remote_dir,True)
+        sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
 
     def test_file_operations_via_sftp(self):
         sshs = self.start_ssh_session()
         sshs.rs.start_sftp()
-        sshs.rs.sftp.put_folder(self.cur_dir,self.remote_dir,True)
-        path = os.path.join(self.remote_dir,'test_sftp.py')
-        sftp_f = sshs.rs.sftp.open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR)
-        assert b'THIS IS A TEST' in sshs.rs.sftp.read(sftp_f)
-        sshs.rs.sftp.seek(sftp_f,0)
-        file_data = b''
-        for data in sshs.rs.sftp.read(sftp_f,iter=True):
-            print(data)
-            file_data+=data
-        assert b'THIS IS A TEST' in file_data
-        sshs.rs.sftp.rewind(sftp_f) # Be kind and rewind! :)
-        sshs.rs.sftp.close(sftp_f)
-        shutil.rmtree(self.real_remote_dir)
+        sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
+        def test_path(path):
+            sftp_f = sshs.rs.sftp.open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR)
+            assert b'THIS IS A TEST' in sshs.rs.sftp.read(sftp_f)
+            sshs.rs.sftp.seek(sftp_f,0)
+            file_data = b''
+            for data in sshs.rs.sftp.read(sftp_f,iter=True):
+                print(data)
+                file_data+=data
+            assert b'THIS IS A TEST' in file_data
+            sshs.rs.sftp.rewind(sftp_f) # Be kind and rewind! :)
+            sshs.rs.sftp.close(sftp_f)
+        files_path = os.path.join(self.remote_dir,'file_tests')
+        paths = [
+            os.path.join(self.remote_dir,'test_sftp.py'),
+            os.path.join(files_path,'a'),
+            os.path.join(files_path,os.path.join('test_dir','b'))
+        ]
+        for path in paths:
+            test_path(path)
+
+    def test_ignore_existing_dirs(self):
+        failed = False
+        sshs = self.start_ssh_session()
+        sshs.rs.start_sftp()
+        sshs.rs.sftp.ignore_existing_dirs = False
+        try:
+            sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
+            sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
+        except:
+            failed = True
+        assert failed==True
+
 
 if __name__ == '__main__':
     unittest.main()

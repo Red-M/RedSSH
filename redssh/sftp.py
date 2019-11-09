@@ -29,9 +29,12 @@ class RedSFTP(object):
         '''
         .. warning::
             This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
+
+        Set ``self.ignore_existing_dirs`` to ``False`` to make `redssh.sftp.RedSFTP.mkdir` not ignore already existing directories.
         '''
         self.caller = caller
         self.enable_fsync = False
+        self.ignore_existing_dirs = True
         self.client = self.caller._block(self.caller.session.sftp_init)
 
 
@@ -46,7 +49,11 @@ class RedSFTP(object):
         :return: ``None``
         '''
         if self.caller.__check_for_attr__('sftp'):
-            self.caller._block(self.client.mkdir,remote_path,dir_mode)
+            try:
+                self.caller._block(self.client.mkdir,remote_path,dir_mode)
+            except libssh2.exceptions.SFTPProtocolError as e:
+                if self.ignore_existing_dirs==False:
+                    raise(e)
 
     def list_dir(self,remote_path):
         '''
@@ -148,7 +155,7 @@ class RedSFTP(object):
                 self.caller._block(file_obj.fsync)
             self.caller._block(file_obj.close)
 
-    def put_folder(self,local_path,remote_path,recursive=False):
+    def put_folder(self,local_path,remote_path):
         '''
         Upload an entire folder via SFTP to the remote session. Similar to ``cp -r /files/* /target``
         Also retains file permissions.
@@ -157,18 +164,17 @@ class RedSFTP(object):
         :type local_path: ``str``
         :param remote_path: The remote path to upload the ``local_path`` to.
         :type remote_path: ``str``
-        :param recursive: Enable recursion down multiple directories from the top level of ``local_path``.
-        :type recursive: ``bool``
         '''
         if self.caller.__check_for_attr__('sftp'):
             for (dirpath,dirnames,filenames) in os.walk(local_path):
-                for dirname in dirnames:
-                    local_dir_path = os.path.join(local_path,dirname)
-                    remote_dir_path = os.path.join(remote_path,dirname)
+                for dirname in sorted(dirnames):
+                    local_dir_path = os.path.join(dirpath,dirname)
+                    tmp_rpath = local_dir_path[len(local_path):]
+                    if tmp_rpath.startswith(os.path.sep):
+                        tmp_rpath = tmp_rpath[1:]
+                    remote_dir_path = os.path.join(remote_path,tmp_rpath)
                     if not dirname in self.list_dir(remote_path).readdir():
                         self.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
-                    if recursive==True:
-                        self.put_folder(local_dir_path,remote_dir_path,recursive=recursive)
                 for filename in filenames:
                     local_file_path = os.path.join(dirpath,filename)
                     remote_file_base = local_file_path[len(local_path):0-len(filename)]
