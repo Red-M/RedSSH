@@ -65,7 +65,7 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('local_tunnel_test')
-        (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
+        port = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
         out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
@@ -75,7 +75,7 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('local_tunnel_test')
-        (a,b,server,port) = sshs.rs.dynamic_tunnel(0)
+        port = sshs.rs.dynamic_tunnel(0)
         sshs.wait_for('Tunneled')
         out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
         sshs.wait_for('Command$ ')
@@ -114,14 +114,14 @@ class RedSSHUnitTest(unittest.TestCase):
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
-        (a,b,server,port) = sshs.rs.local_tunnel(0,'google.com',80)
+        port = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
         out = get_local('http://localhost:'+str(port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
-        (a,b,server,port) = sshs.rs.dynamic_tunnel(0)
+        port = sshs.rs.dynamic_tunnel(0)
         sshs.wait_for('Tunneled')
         out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
         sshs.wait_for('Command$ ')
