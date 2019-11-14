@@ -50,6 +50,8 @@ class RedSSH(object):
     '''
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
         ssh_keepalive_interval=0.0):
+        self.write = self.send # alias
+        self.recv = self.read # alias
         self.debug = False
         self._block_lock = multiprocessing.RLock()
         self.encoding = encoding
@@ -189,6 +191,9 @@ class RedSSH(object):
             self._block(self.channel.setenv,varname,value)
 
     def check_host_key(self,hostname,port):
+        if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
+            return(None)
+
         self.known_hosts = self.session.knownhost_init()
         if os.path.exists(self.known_hosts_path)==True:
             self.known_hosts.readfile(self.known_hosts_path)
@@ -202,8 +207,6 @@ class RedSSH(object):
             server_key_type = libssh2.LIBSSH2_KNOWNHOST_KEY_SSHDSS
         key_bitmask = libssh2.LIBSSH2_KNOWNHOST_TYPE_PLAIN|libssh2.LIBSSH2_KNOWNHOST_KEYENC_RAW|server_key_type
 
-        if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
-            return(None)
 
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.strict:
             self.known_hosts.checkp(hostname,port,host_key,key_bitmask)
@@ -273,7 +276,7 @@ class RedSSH(object):
 
             self.session.handshake(self.sock)
 
-            self.check_host_key(hostname,port)
+            self.check_host_key(hostname,port) # segfault on real ssh server????
 
             auth_requests = self.session.userauth_list(username)
             authenticated = False
@@ -350,15 +353,18 @@ class RedSSH(object):
             self._block(self.channel.shell)
             self.past_login = True
 
-    def read(self,wait_time=None):
+    def read(self,block=False):
         '''
         Recieve data from the remote session.
         Only works if the current session has made it past the login process.
 
+        :param block: Block until data is received from the remote server. ``True``
+        will block until data is recieved and ``False`` may return ``b''`` if no data is available from the remote server.
+        :type block: ``bool``
         :return: ``generator`` - A generator of byte strings that has been recieved in the time given.
         '''
         if self.past_login==True:
-            return(self._read_iter(self.channel.read))
+            return(self._read_iter(self.channel.read,block))
 
     def send(self,string):
         '''
@@ -403,6 +409,9 @@ class RedSSH(object):
 
         Forwards a port on the remote machine the same way the ``-L`` option does for the OpenSSH client.
 
+        Providing a ``0`` for the local port will mean the OS will assign an unbound port for you.
+        This port number will be provided to you by this function.
+
         :param local_port: The local port on the local machine to bind to.
         :type local_port: ``int``
         :param remote_host: The remote host to connect to via the remote machine.
@@ -413,7 +422,7 @@ class RedSSH(object):
         :type bind_addr: ``str``
         :param error_level: The level of verbosity that errors in tunnel threads will use.
         :type error_level: ``redssh.enums.TunnelErrorLevel``
-        :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server,tun_server_port)`` this is so you can control the tunnel's thread if you need to.
+        :return: ``int`` The local port that has been bound.
         '''
         assert isinstance(remote_host,type(''))
         assert isinstance(remote_port,type(0))
@@ -440,7 +449,7 @@ class RedSSH(object):
                 option_string = str(local_port)+':'+remote_host+':'+str(remote_port)
                 tun_thread.name = enums.TunnelType.local.value+':'+option_string
             self.tunnels[enums.TunnelType.local.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
-        return(self.tunnels[enums.TunnelType.local.value][option_string])
+        return(local_port)
 
     def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
         '''
@@ -455,7 +464,7 @@ class RedSSH(object):
         :type remote_port: ``int``
         :param error_level: The level of verbosity that errors in tunnel threads will use.
         :type error_level: ``redssh.enums.TunnelErrorLevel``
-        :return: ``tuple`` of ``(tun_thread,thread_terminate,None,None)`` this is so you can control the tunnel's thread if you need to.
+        :return: ``None``
         '''
         option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
         if not option_string in self.tunnels[enums.TunnelType.remote.value]:
@@ -467,12 +476,15 @@ class RedSSH(object):
             tun_thread.start()
             wait_for_chan.wait()
             self.tunnels[enums.TunnelType.remote.value][option_string] = (tun_thread,thread_terminate,None,None)
-        return(self.tunnels[enums.TunnelType.remote.value][option_string])
+        return(None)
 
     def dynamic_tunnel(self,local_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
         '''
 
         Opens a SOCKS proxy AKA gateway or dynamic port the same way the ``-D`` option does for the OpenSSH client.
+
+        Providing a ``0`` for the local port will mean the OS will assign an unbound port for you.
+        This port number will be provided to you by this function.
 
         :param local_port: The local port on the local machine to bind to.
         :type local_port: ``int``
@@ -480,9 +492,9 @@ class RedSSH(object):
         :type bind_addr: ``str``
         :param error_level: The level of verbosity that errors in tunnel threads will use.
         :type error_level: ``redssh.enums.TunnelErrorLevel``
-        :return: ``tuple`` of ``(tun_thread,thread_terminate,tun_server,tun_server_port)`` this is so you can control the tunnel's thread if you need to.
+        :return: ``int`` The local port that has been bound.
         '''
-        option_string = str(local_port)
+        option_string = bind_addr+':'+str(local_port)
         if not option_string in self.tunnels[enums.TunnelType.dynamic.value]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
@@ -505,9 +517,9 @@ class RedSSH(object):
                 option_string = str(local_port)
                 tun_thread.name = enums.TunnelType.dynamic.value+':'+option_string
             self.tunnels[enums.TunnelType.dynamic.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
-        return(self.tunnels[enums.TunnelType.dynamic.value][option_string])
+        return(local_port)
 
-    def shutdown_tunnel(self,tunnel_type,sport,rhost,rport,bind_addr='127.0.0.1'):
+    def shutdown_tunnel(self,tunnel_type,sport,rhost=None,rport=None,bind_addr='127.0.0.1'):
         '''
 
         Closes an open tunnel.
@@ -519,7 +531,9 @@ class RedSSH(object):
 
         `remote_tunnel(7777,'localhost',8888)` would be `shutdown_tunnel(redssh.enums.TunnelType.remote,7777,'localhost',8888)`
 
-        `dynamic_tunnel(9999)` would be `shutdown_tunnel(redssh.enums.TunnelType.dynamic,9999,None,None)`
+        `dynamic_tunnel(9999)` would be `shutdown_tunnel(redssh.enums.TunnelType.dynamic,9999)`
+
+        `dynamic_tunnel(9999,'10.0.0.1')` would be `shutdown_tunnel(redssh.enums.TunnelType.dynamic,9999,bind_addr='10.0.0.1')`
 
         :param tunnel_type: The tunnel type to shutdown.
         :type tunnel_type: ``redssh.enums.TunnelType``
@@ -533,14 +547,17 @@ class RedSSH(object):
         :type bind_addr: ``str``
         :return: ``None``
         '''
-        if tunnel_type==enums.TunnelType.dynamic:
-            option_string = str(sport)
-        else:
-            option_string = str(bind_addr)+':'+str(sport)+':'+rhost+':'+str(rport)
-        if option_string in self.tunnels[tunnel_type.value]:
-            (thread,queue,server,server_port) = self.tunnels[tunnel_type.value][option_string]
-            self.__shutdown_thread__(thread,queue,server)
-            del self.tunnels[tunnel_type.value][option_string]
+        if tunnel_type in enums.TunnelType:
+            if tunnel_type==enums.TunnelType.dynamic:
+                option_string = bind_addr+':'+str(sport)
+            elif rhost!=None and rport!=None:
+                option_string = str(bind_addr)+':'+str(sport)+':'+rhost+':'+str(rport)
+            else:
+                return()
+            if option_string in self.tunnels[tunnel_type.value]:
+                (thread,queue,server,server_port) = self.tunnels[tunnel_type.value][option_string]
+                self.__shutdown_thread__(thread,queue,server)
+                del self.tunnels[tunnel_type.value][option_string]
 
 
     def close_tunnels(self):

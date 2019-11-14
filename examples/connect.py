@@ -9,7 +9,7 @@ def main():
 
     rs = redssh.RedSSH()
     print(hostname)
-    rs.connect(hostname=hostname,username=username,password=passwd,timeout=1.5)
+    rs.connect(hostname=hostname,username=username,password=passwd,allow_agent=True,timeout=1.5)
     rs.exit()
 
 
