@@ -50,8 +50,6 @@ class RedSSH(object):
     '''
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
         ssh_keepalive_interval=0.0):
-        self.write = self.send # alias
-        self.recv = self.read # alias
         self.debug = False
         self._block_lock = multiprocessing.RLock()
         self.encoding = encoding
@@ -163,7 +161,7 @@ class RedSSH(object):
 
     def methods(self, method):
         '''
-        Returns what value was settled on for session negotiation.
+        Returns what value was settled on during session negotiation.
         '''
         if self.__check_for_attr__('session')==True:
             if 'methods' in dir(self.session): # remove once my fork is merged.
