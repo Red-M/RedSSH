@@ -47,9 +47,13 @@ class RedSSH(object):
     :type ssh_host_key_verification: :class:`redssh.enums.SSHHostKeyVerify`
     :param ssh_keepalive_interval: Enable or disable SSH keepalive packets, value is interval in seconds.
     :type ssh_keepalive_interval: ``float``
+    :param set_flags: Not supported in ssh2-python 0.18.0
+    :type set_flags: ``dict``
+    :param method_preferences: Not supported in ssh2-python 0.18.0
+    :type method_preferences: ``dict``
     '''
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
-        ssh_keepalive_interval=0.0):
+        ssh_keepalive_interval=0.0,set_flags={},method_preferences={}):
         self.debug = False
         self._block_lock = multiprocessing.RLock()
         self.encoding = encoding
@@ -58,8 +62,8 @@ class RedSSH(object):
         self.ssh_host_key_verification = ssh_host_key_verification
         self.ssh_keepalive_interval = ssh_keepalive_interval
         self.request_pty = True
-        self.set_flags = {}
-        self.method_preferences = {}
+        self.set_flags = set_flags
+        self.method_preferences = method_preferences
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         if known_hosts==None:

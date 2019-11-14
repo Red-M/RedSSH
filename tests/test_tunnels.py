@@ -100,32 +100,37 @@ class RedSSHUnitTest(unittest.TestCase):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('localhost', 0))
-        port = int(sock.getsockname()[1])
+        rem_port = int(sock.getsockname()[1])
         sock.close()
 
 
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('remote_tunnel_test')
-        sshs.rs.remote_tunnel(port,'google.com',80)
+        sshs.rs.remote_tunnel(rem_port,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local('http://localhost:'+str(port))
+        out = get_local('http://localhost:'+str(rem_port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
-        port = sshs.rs.local_tunnel(0,'google.com',80)
+        local_port = sshs.rs.local_tunnel(0,'google.com',80)
         sshs.wait_for('Tunneled')
-        out = get_local('http://localhost:'+str(port))
+        out = get_local('http://localhost:'+str(local_port))
         sshs.wait_for('Command$ ')
         assert self.response_text in out
 
         sshs.sendline('local_tunnel_test')
-        port = sshs.rs.dynamic_tunnel(0)
+        dyn_port = sshs.rs.dynamic_tunnel(0)
         sshs.wait_for('Tunneled')
-        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
+        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(dyn_port),'https':'socks5://localhost:'+str(dyn_port)})
         sshs.wait_for('Command$ ')
         assert self.response_text in out
+
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.local,local_port,'google.com',80)
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.remote,rem_port,'google.com',80)
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.dynamic,dyn_port)
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.local,dyn_port)
 
 
 if __name__ == '__main__':

@@ -77,6 +77,27 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.wait_for('Command$ ')
         sshs.sendline('reply')
 
+    def test_basic_last_error(self):
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('reply')
+        sshs.rs.last_error()
+
+    def test_basic_set_flags_and_prefs(self):
+        comp = b'zlib,zlib@openssh.com,none'
+        class_init = {
+            'set_flags':{
+                redssh.libssh2.LIBSSH2_FLAG_COMPRESS:True
+            },
+            'method_preferences':{
+                redssh.libssh2.LIBSSH2_METHOD_COMP_SC:comp,
+                redssh.libssh2.LIBSSH2_METHOD_COMP_CS:comp
+            }
+        }
+        sshs = self.start_ssh_session(class_init=class_init)
+        sshs.wait_for('Command$ ')
+        sshs.sendline('reply')
+
     def test_known_hosts(self):
         known_hosts_file = os.path.join('tests','known_hosts')
         try:

@@ -1,5 +1,6 @@
 import os
 import socket
+import subprocess
 import unittest
 import threading
 import multiprocessing
@@ -72,7 +73,25 @@ class RedSSHUnitTest(unittest.TestCase):
 
     def test_agent_auth(self):
         try:
-            # spawn ssh agent and remove potiental for agent already in environ
+            if 'SSH_AUTH_SOCK' in os.environ:
+                old_ssh_agent = os.environ['SSH_AUTH_SOCK']
+                del os.environ['SSH_AUTH_SOCK']
+            proc = subprocess.run('/usr/bin/ssh-agent',env=os.environ,capture_output=True,check=True,text=True)
+            stdout = proc.stdout
+            os.environ['SSH_AUTH_SOCK'] = stdout.split(';')[0].split('=')[-1]
+            agent_pid = stdout.split(';')[-2].split(' ')[-1]
+            subprocess.run(['/usr/bin/ssh-add',self.key_path],env=os.environ, check=True)
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True})
+            sshs.wait_for('Command$ ')
+            sshs.sendline('reply')
+            if 'old_ssh_agent' in locals():
+                os.environ['SSH_AUTH_SOCK'] = old_ssh_agent
+            subprocess.run(['/bin/kill',agent_pid],env=os.environ, check=True)
+        except redssh.exceptions.AuthenticationFailedException:
+            pass
+
+    def test_bad_agent_auth(self):
+        try:
             sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True})
             sshs.wait_for('Command$ ')
             sshs.sendline('reply')
