@@ -244,8 +244,8 @@ class RedSSH(object):
         :type password: ``str``
         :param allow_agent: Allow the local SSH key agent to offer the keys held in it for authentication.
         :type allow_agent: ``bool``
-        :param key_filepath: Array of filenames to offer to the remote server. Can be a string
-        :type key_filepath: ``array``
+        :param key_filepath: Array of filenames to offer to the remote server. Can be a string for a single key.
+        :type key_filepath: ``array``/``str``
         :param passphrase: Passphrase to decrypt any keys offered to the remote server.
         :type passphrase: ``str``
         :param look_for_keys: Enable offering keys in ``~/.ssh`` automatically. NOT IMPLEMENTED!
