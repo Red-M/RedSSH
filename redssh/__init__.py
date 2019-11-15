@@ -23,7 +23,7 @@
 
 
 '''
-VERSION = u'2.1.4-2'
+VERSION = u'2.1.4-3'
 
 from redssh.redssh import RedSSH
 from redssh.redssh import exceptions

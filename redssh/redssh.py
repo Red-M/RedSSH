@@ -56,6 +56,7 @@ class RedSSH(object):
         ssh_keepalive_interval=0.0,set_flags={},method_preferences={}):
         self.debug = False
         self._block_lock = multiprocessing.RLock()
+        self.__shutdown_all__ = multiprocessing.Event()
         self.encoding = encoding
         self.tunnels = {enums.TunnelType.local.value:{},enums.TunnelType.remote.value:{},enums.TunnelType.dynamic.value:{}}
         self.terminal = terminal
@@ -107,54 +108,58 @@ class RedSSH(object):
             select.select(rfds,wfds,[],0.001)
 
     def _block(self,func,*args,**kwargs):
-        with self._block_lock:
-            out = func(*args,**kwargs)
-        while out==libssh2.LIBSSH2_ERROR_EAGAIN:
-            self._block_select()
+        if self.__shutdown_all__.is_set()==False:
             with self._block_lock:
                 out = func(*args,**kwargs)
-        return(out)
+            while out==libssh2.LIBSSH2_ERROR_EAGAIN:
+                self._block_select()
+                with self._block_lock:
+                    out = func(*args,**kwargs)
+            return(out)
 
     def _block_write(self,func,data):
         data_len = len(data)
         total_written = 0
         while total_written<data_len:
-            with self._block_lock:
-                (rc,bytes_written) = func(data[total_written:])
-            total_written+=bytes_written
-            if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
-                self._block_select()
+            if self.__shutdown_all__.is_set()==False:
+                with self._block_lock:
+                    (rc,bytes_written) = func(data[total_written:])
+                total_written+=bytes_written
+                if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
+                    self._block_select()
         return(total_written)
 
     def _read_iter(self,func,block=False):
         pos = 0
         remainder_len = 0
         remainder = b''
-        with self._block_lock:
-            (size,data) = func()
-        while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
-            if size==libssh2.LIBSSH2_ERROR_EAGAIN:
-                self._block_select()
-                with self._block_lock:
-                    (size,data) = func()
-            # if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
-            if size==libssh2.LIBSSH2_ERROR_EAGAIN and block==False:
-                return(b'')
-            while size>0:
-                while pos<size:
-                    if remainder_len>0:
-                        yield(remainder+data[pos:size])
-                        remainder = b''
-                        remainder_len = 0
-                    else:
-                        yield(data[pos:size])
-                    pos = size
-                self._block_select()
-                with self._block_lock:
-                    (size,data) = func()
-                pos = 0
-        if remainder_len>0:
-            yield(remainder)
+        if self.__shutdown_all__.is_set()==False:
+            with self._block_lock:
+                (size,data) = func()
+            while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
+                if size==libssh2.LIBSSH2_ERROR_EAGAIN:
+                    self._block_select()
+                    if self.__shutdown_all__.is_set()==False:
+                        with self._block_lock:
+                            (size,data) = func()
+                # if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
+                if size==libssh2.LIBSSH2_ERROR_EAGAIN and block==False:
+                    return(b'')
+                while size>0:
+                    while pos<size:
+                        if remainder_len>0:
+                            yield(remainder+data[pos:size])
+                            remainder = b''
+                            remainder_len = 0
+                        else:
+                            yield(data[pos:size])
+                        pos = size
+                    self._block_select()
+                    with self._block_lock:
+                        (size,data) = func()
+                    pos = 0
+            if remainder_len>0:
+                yield(remainder)
 
     def eof(self):
         '''
@@ -365,8 +370,10 @@ class RedSSH(object):
         :type block: ``bool``
         :return: ``generator`` - A generator of byte strings that has been recieved in the time given.
         '''
-        if self.past_login==True:
-            return(self._read_iter(self.channel.read,block))
+        if self.__check_for_attr__('past_login')==True:
+            if self.past_login==True:
+                return(self._read_iter(self.channel.read,block))
+        return([])
 
     def send(self,string):
         '''
@@ -375,9 +382,12 @@ class RedSSH(object):
 
         :param string: String to send to the remote session.
         :type string: ``str``
+        :return: ``int`` - Amount of bytes sent to remote machine.
         '''
-        if self.past_login==True:
-            self._block_write(self.channel.write,string)
+        if self.__check_for_attr__('past_login')==True:
+            if self.past_login==True:
+                return(self._block_write(self.channel.write,string))
+        return(0)
 
     def last_error(self):
         '''
@@ -580,6 +590,7 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
+                self.__shutdown_all__.set()
                 if self.__check_for_attr__('sftp')==True:
                     del self.sftp
                 self.close_tunnels()
