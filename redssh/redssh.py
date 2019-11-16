@@ -433,7 +433,7 @@ class RedSSH(object):
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
         :param error_level: The level of verbosity that errors in tunnel threads will use.
-        :type error_level: ``redssh.enums.TunnelErrorLevel``
+        :type error_level: :class:`redssh.enums.TunnelErrorLevel`
         :return: ``int`` The local port that has been bound.
         '''
         assert isinstance(remote_host,type(''))
@@ -475,7 +475,7 @@ class RedSSH(object):
         :param remote_port: The remote host's port to connect to via the local machine.
         :type remote_port: ``int``
         :param error_level: The level of verbosity that errors in tunnel threads will use.
-        :type error_level: ``redssh.enums.TunnelErrorLevel``
+        :type error_level: :class:`redssh.enums.TunnelErrorLevel`
         :return: ``None``
         '''
         option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
@@ -503,7 +503,7 @@ class RedSSH(object):
         :param bind_addr: The bind address on this machine to bind to for the local port.
         :type bind_addr: ``str``
         :param error_level: The level of verbosity that errors in tunnel threads will use.
-        :type error_level: ``redssh.enums.TunnelErrorLevel``
+        :type error_level: :class:`redssh.enums.TunnelErrorLevel`
         :return: ``int`` The local port that has been bound.
         '''
         option_string = bind_addr+':'+str(local_port)
@@ -548,7 +548,7 @@ class RedSSH(object):
         `dynamic_tunnel(9999,'10.0.0.1')` would be `shutdown_tunnel(redssh.enums.TunnelType.dynamic,9999,bind_addr='10.0.0.1')`
 
         :param tunnel_type: The tunnel type to shutdown.
-        :type tunnel_type: ``redssh.enums.TunnelType``
+        :type tunnel_type: :class:`redssh.enums.TunnelType`
         :param sport: The bound port for local and dynamic tunnels or the local port on the remote side for remote tunnels.
         :type sport: ``str``
         :param rhost: The remote host for local and remote tunnels.
