@@ -195,7 +195,6 @@ def start_server(queue):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('127.0.0.1', server_port))
-        queue.put(sock.getsockname()[1])
     except Exception as e:
         print('*** Bind failed: ' + str(e))
         traceback.print_exc()
@@ -204,6 +203,7 @@ def start_server(queue):
     try:
         sock.listen(100)
         print('Listening for connection ...')
+        queue.put(sock.getsockname()[1])
         (client, addr) = sock.accept()
     except Exception as e:
         print('*** Listen/accept failed: ' + str(e))

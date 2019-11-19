@@ -585,14 +585,15 @@ class RedSSH(object):
 
     def exit(self):
         '''
-        Kill the current session if actually connected.
-        After this you might as well just free memory from the class instance.
+        Kill the current session if connected.
         '''
         if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
                 self.__shutdown_all__.set()
                 if self.__check_for_attr__('sftp')==True:
                     del self.sftp
+                if self.__check_for_attr__('scp')==True:
+                    del self.scp
                 self.close_tunnels()
                 if not self._ssh_keepalive_thread==None:
                     self.__shutdown_thread__(self._ssh_keepalive_thread,self._ssh_keepalive_event,None)
@@ -605,3 +606,6 @@ class RedSSH(object):
                 del self.channel,self.past_login,self._ssh_keepalive_thread
                 del self.session
                 del self.sock
+                self._ssh_keepalive_thread = None
+                self._ssh_keepalive_event = None
+                self.__shutdown_all__.clear()

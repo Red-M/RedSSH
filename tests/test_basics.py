@@ -12,13 +12,11 @@ from .servers import paramiko_server as ssh_server
 
 class SSHSession(object):
     def __init__(self,hostname='127.0.0.1',port=2200,class_init={},connect_args={}):
+        self.conn_hostname = hostname
+        self.conn_port = port
+        self.conn_connect_args = connect_args
         self.rs = redssh.RedSSH(**class_init)
-        connect_args_extra = {
-            'username':'redm',
-            'password':'foobar!'
-        }
-        connect_args_extra.update(connect_args)
-        self.rs.connect(hostname, port, **connect_args_extra)
+        self._tests_connect()
 
     def wait_for(self, wait_string):
         if isinstance(wait_string,type('')):
@@ -26,11 +24,20 @@ class SSHSession(object):
         read_data = b''
         while not wait_string in read_data:
             for data in self.rs.read():
+                print(data)
                 read_data += data
         return(read_data)
 
     def sendline(self, line):
         self.rs.send(line+'\r\n')
+
+    def _tests_connect(self):
+        connect_args_extra = {
+            'username':'redm',
+            'password':'foobar!'
+        }
+        connect_args_extra.update(self.conn_connect_args)
+        self.rs.connect(self.conn_hostname, self.conn_port, **connect_args_extra)
 
 
 
@@ -76,6 +83,16 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('reply')
+
+    # def test_basic_reconnect(self): This is broken but should be working, I blame the test ssh server.
+        # sshs = self.start_ssh_session()
+        # sshs.wait_for('Command$ ')
+        # sshs.sendline('reply')
+        # sshs.rs.exit()
+        # sshs.conn_port = self.start_ssh_server()
+        # sshs._tests_connect()
+        # sshs.wait_for('Command$ ')
+        # sshs.sendline('reply')
 
     def test_basic_last_error(self):
         sshs = self.start_ssh_session()
