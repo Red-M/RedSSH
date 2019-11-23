@@ -117,7 +117,7 @@ def local_handler(self,terminate,request,remote_host,remote_port):
     chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
     chan_eof = False
     while terminate.is_set()==False and chan_eof!=True:
-        (r,w,x) = select.select([request,self.sock],[],[],0.001)
+        (r,w,x) = select.select([request,self.sock],[],[],self._select_timeout)
         no_data = False
         if terminate.is_set()==True:
             no_data = True
@@ -185,7 +185,7 @@ def remote_handle(self,chan,host,port,terminate,error_level):
             if request.send(buf)<=0:
                 break
         while terminate.is_set()==False and chan_eof!=True:
-            (r,w,x) = select.select([self.sock,request],[],[],0.001)
+            (r,w,x) = select.select([self.sock,request],[],[],self._select_timeout)
             if terminate.is_set()==True:
                 request.close()
                 self._block(chan.close)

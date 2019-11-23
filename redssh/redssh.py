@@ -55,6 +55,8 @@ class RedSSH(object):
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
         ssh_keepalive_interval=0.0,set_flags={},method_preferences={}):
         self.debug = False
+        self._select_timeout_enable = False
+        self._select_timeout = 0.001
         self._block_lock = multiprocessing.RLock()
         self.__shutdown_all__ = multiprocessing.Event()
         self.encoding = encoding
@@ -99,13 +101,18 @@ class RedSSH(object):
             block_direction = self.session.block_directions()
             if block_direction==0:
                 return(None)
+
+        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
+            rfds = [self.sock]
+        else:
             rfds = []
+
+        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
+            wfds = [self.sock]
+        else:
             wfds = []
-            if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
-                rfds = [self.sock]
-            if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
-                wfds = [self.sock]
-            select.select(rfds,wfds,[],0.001)
+
+        select.select(rfds,wfds,[],self._select_timeout)
 
     def _block(self,func,*args,**kwargs):
         if self.__shutdown_all__.is_set()==False:
@@ -264,8 +271,12 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('past_login')==False:
             if sock==None:
+                __initial = time.time()
                 self.sock = socket.create_connection((hostname,port),timeout)
                 self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
+                new_poll_time = float(time.time()-__initial)*0.95
+                if new_poll_time>self._select_timeout and self._select_timeout_enable==True:
+                    self._select_timeout = new_poll_time
             else:
                 self.sock = sock
             self.session = libssh2.Session()
