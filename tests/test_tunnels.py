@@ -61,6 +61,18 @@ class RedSSHUnitTest(unittest.TestCase):
         self.server.kill()
 
 
+    def test_local_tunnel_bad_host(self):
+        try:
+            sshs = self.start_ssh_session()
+            sshs.wait_for('Command$ ')
+            sshs.sendline('local_tunnel_test')
+            port = sshs.rs.dynamic_tunnel(0)
+            sshs.wait_for('Tunneled')
+            out = get_local('http://ksmjdlfngkdsfg.com',headers={'host':'localhost'},proxies={'http':'socks5h://localhost:'+str(port),'https':'socks5h://localhost:'+str(port)})
+            sshs.wait_for('Command$ ')
+        except:
+            pass
+
     def test_local_tunnel_read_write(self):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')

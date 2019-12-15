@@ -83,6 +83,22 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs = self.start_ssh_session()
         sshs.wait_for('Command$ ')
         sshs.sendline('reply')
+        assert sshs.rs.eof()==False
+
+    def test_basic_set_session_options(self):
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('reply')
+        res = sshs.rs.methods(redssh.libssh2.LIBSSH2_METHOD_CRYPT_SC)
+
+    def test_basic_setenv(self):
+        sshs = self.start_ssh_session()
+        sshs.wait_for('Command$ ')
+        sshs.sendline('reply')
+        try:
+            sshs.rs.setenv('TEST','test') # I need to rewrite the test server at this point, this is crap.
+        except:
+            pass
 
     # def test_basic_reconnect(self): This is broken but should be working, I blame the test ssh server.
         # sshs = self.start_ssh_session()

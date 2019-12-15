@@ -27,8 +27,10 @@ class TunnelType(enum.Enum):
     local = 'local'
     remote = 'remote'
     dynamic = 'dynamic'
+    x11 = 'X11'
 
 class TunnelErrorLevel(enum.Enum):
     none = 0
     warn = 1
     debug = 2
+    error = 3

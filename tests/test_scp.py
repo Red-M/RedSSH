@@ -53,7 +53,12 @@ class RedSSHUnitTest(unittest.TestCase):
         server_port = q.get()
         return(server_port)
 
-    def start_ssh_session(self,server_port=None,class_init={},connect_args={}):
+    def start_ssh_session(self,test_name=None,server_port=None,class_init={},connect_args={}):
+        if isinstance(test_name,type('')):
+            try:
+                os.makedirs(os.path.join(self.real_remote_dir,test_name))
+            except:
+                pass
         if server_port==None:
             server_port = self.start_ssh_server()
         sshs = SSHSession(self.server_hostname,server_port,class_init,connect_args)

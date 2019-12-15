@@ -1,0 +1,29 @@
+language: python
+cache:
+  - pip
+notifications:
+  email: false
+python:
+  - 2.7
+  - 3.5
+  - 3.6
+  - 3.7
+  - 3.8
+
+addons:
+  apt:
+    packages:
+      - make
+      - curl
+      - wget
+      - python3
+      - python3-distutils
+
+install:
+  - pip install -e ./[tests]
+  - pip install -e ./[docs]
+
+script:
+  - ./tests/test.sh
+  - cd ./docs
+  - make html

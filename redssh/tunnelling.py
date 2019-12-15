@@ -50,6 +50,16 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
         self.wchan.set()
         self.socket.listen(self.request_queue_size)
 
+    def handle_error(self,request,client_address):
+        error_level = self.error_level
+        if error_level==enums.TunnelErrorLevel.warn:
+            print('Exception happened during processing of request from',client_address,file=sys.stderr)
+        if error_level==enums.TunnelErrorLevel.debug:
+            print('Exception happened during processing of request from',client_address,file=sys.stderr)
+            print(sys.last_value)
+        elif error_level==enums.TunnelErrorLevel.error:
+            super().handle_error(self,request,client_address)
+
 
 class LocalPortServerHandler(SocketServer.BaseRequestHandler):
     def handle(self):
@@ -94,15 +104,6 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
             if self.terminate.is_set()==True:
                 self.server.shutdown()
 
-    def handle_error(self,request,client_address):
-        error_level = self.server.error_level
-        if error_level==enums.TunnelErrorLevel.warn:
-            print('Exception happened during processing of request from',client_address,file=sys.stderr)
-            print(sys.last_value)
-        elif error_level==enums.TunnelErrorLevel.debug:
-            super().handle_error(self,request,client_address)
-
-
     def get_available_methods(self, n):
         methods = []
         for i in range(n):
@@ -117,16 +118,13 @@ def local_handler(self,terminate,request,remote_host,remote_port):
     chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
     chan_eof = False
     while terminate.is_set()==False and chan_eof!=True:
-        (r,w,x) = select.select([request,self.sock],[],[],self._select_timeout)
+        (r,w,x) = select.select([request,self.sock],[],[],self._select_tun_timeout)
         no_data = False
         if terminate.is_set()==True:
             no_data = True
             break
         for buf in self._read_iter(chan.read):
-            if terminate.is_set()==True:
-                no_data = True
-                break
-            if request.send(buf)<=0 or chan_eof==True:
+            if request.send(buf)<=0 or chan_eof==True or terminate.is_set()==True:
                 no_data = True
                 break
         if no_data==True:
@@ -185,7 +183,7 @@ def remote_handle(self,chan,host,port,terminate,error_level):
             if request.send(buf)<=0:
                 break
         while terminate.is_set()==False and chan_eof!=True:
-            (r,w,x) = select.select([self.sock,request],[],[],self._select_timeout)
+            (r,w,x) = select.select([self.sock,request],[],[],self._select_tun_timeout)
             if terminate.is_set()==True:
                 request.close()
                 self._block(chan.close)

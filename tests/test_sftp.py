@@ -55,7 +55,12 @@ class RedSSHUnitTest(unittest.TestCase):
         server_port = q.get()
         return(server_port)
 
-    def start_ssh_session(self,server_port=None,class_init={},connect_args={}):
+    def start_ssh_session(self,test_name=None,server_port=None,class_init={},connect_args={}):
+        if isinstance(test_name,type('')):
+            try:
+                os.makedirs(os.path.join(self.real_remote_dir,test_name))
+            except:
+                pass
         if server_port==None:
             server_port = self.start_ssh_server()
         sshs = SSHSession(self.server_hostname,server_port,class_init,connect_args)
@@ -86,14 +91,18 @@ class RedSSHUnitTest(unittest.TestCase):
         sshs.rs.start_sftp()
 
     def test_copy_and_open(self):
-        sshs = self.start_ssh_session()
+        test_name = 'copy_and_open'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
         sshs.rs.start_sftp()
-        sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
 
     def test_file_operations_via_sftp(self):
-        sshs = self.start_ssh_session()
+        test_name = 'file_operations_via_sftp'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
         sshs.rs.start_sftp()
-        sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
         def test_path(path):
             sftp_f = sshs.rs.sftp.open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR)
             assert b'THIS IS A TEST' in sshs.rs.sftp.read(sftp_f)
@@ -105,9 +114,9 @@ class RedSSHUnitTest(unittest.TestCase):
             assert b'THIS IS A TEST' in file_data
             sshs.rs.sftp.rewind(sftp_f) # Be kind and rewind! :)
             sshs.rs.sftp.close(sftp_f)
-        files_path = os.path.join(self.remote_dir,'file_tests')
+        files_path = os.path.join(remote_path,'file_tests')
         paths = [
-            os.path.join(self.remote_dir,'test_sftp.py'),
+            os.path.join(remote_path,'test_sftp.py'),
             os.path.join(files_path,'a'),
             os.path.join(files_path,os.path.join('test_dir','b'))
         ]
@@ -115,13 +124,15 @@ class RedSSHUnitTest(unittest.TestCase):
             test_path(path)
 
     def test_ignore_existing_dirs(self):
+        test_name = 'ignore_existing_dirs'
+        remote_path = os.path.join(self.remote_dir,test_name)
         failed = False
-        sshs = self.start_ssh_session()
+        sshs = self.start_ssh_session(test_name)
         sshs.rs.start_sftp()
         sshs.rs.sftp.ignore_existing_dirs = False
         try:
-            sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
-            sshs.rs.sftp.put_folder(self.test_dir,self.remote_dir)
+            sshs.rs.sftp.put_folder(self.test_dir,remote_path)
+            sshs.rs.sftp.put_folder(self.test_dir,remote_path)
         except:
             failed = True
         assert failed==True
