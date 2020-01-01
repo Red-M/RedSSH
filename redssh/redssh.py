@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2019  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ class RedSSH(object):
                     self._block_select()
         return(total_written)
 
-    def _read_iter(self,func,block=False):
+    def _read_iter(self,func,block=False,max_read=-1):
         pos = 0
         remainder_len = 0
         remainder = b''
@@ -162,7 +162,7 @@ class RedSSH(object):
                         with self._block_lock:
                             (size,data) = func()
                 # if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
-                if size==libssh2.LIBSSH2_ERROR_EAGAIN and block==False:
+                if size==libssh2.LIBSSH2_ERROR_EAGAIN and (block==False or (max_read>size and max_read!=-1)):
                     return(b'')
                 while size>0:
                     while pos<size:
@@ -613,11 +613,11 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
                 self.__shutdown_all__.set()
+                self.close_tunnels()
                 if self.__check_for_attr__('sftp')==True:
                     del self.sftp
                 if self.__check_for_attr__('scp')==True:
                     del self.scp
-                self.close_tunnels()
                 if not self._ssh_keepalive_thread==None:
                     self.__shutdown_thread__(self._ssh_keepalive_thread,self._ssh_keepalive_event,None)
                 try:

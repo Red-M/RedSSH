@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2019  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 
 '''
-VERSION = u'2.1.5-1'
+VERSION = u'2.1.6'
 
 from redssh.redssh import RedSSH
 from redssh.redssh import exceptions

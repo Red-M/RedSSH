@@ -1,6 +1,9 @@
 # RedSSH
 [![Documentation Status](https://readthedocs.org/projects/redssh/badge/?version=latest)](https://redssh.readthedocs.io/en/latest/?badge=latest)
 
+[![Test Status](https://travis-ci.com/Red-M/RedSSH.svg?branch=master)](https://travis-ci.com/Red-M/RedSSH)
+[![Coverage Status](https://coveralls.io/repos/github/Red-M/RedSSH/badge.svg?branch=master)](https://coveralls.io/github/Red-M/RedSSH?branch=master)
+
 Connect to SSH servers in python easily and with C speed!
 Interacting with SSH shouldn't be hard, slow or limited to certain SSH severs.
 Based on ssh2-python (which provides libssh2 bindings for python) and made into an easy to use SSH library with the focus being ease of use and speed.

@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2019  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ class RedSFTP(object):
         if self.caller.__check_for_attr__('sftp'):
             self.caller._block_write(file_obj.write,data_bytes)
 
-    def read(self,file_obj,iter=False):
+    def read(self,file_obj,iter=True):
         '''
         Read from file object over SFTP on the remote server.
 
@@ -137,8 +137,7 @@ class RedSFTP(object):
                 return(self.caller._read_iter(file_obj.read,True))
             elif iter==False:
                 data = b''
-                iter = self.caller._read_iter(file_obj.read,True)
-                for chunk in iter:
+                for chunk in self.caller._read_iter(file_obj.read,True):
                     data+=chunk
                 return(data)
 
@@ -159,6 +158,7 @@ class RedSFTP(object):
         '''
         Upload an entire folder via SFTP to the remote session. Similar to ``cp -r /files/* /target``
         Also retains file permissions.
+        Local path must be a directory to upload, if a path to a file is provided, nothing will happen.
 
         :param local_path: The local path, on the machine where your code is running from, to upload from.
         :type local_path: ``str``
@@ -166,22 +166,27 @@ class RedSFTP(object):
         :type remote_path: ``str``
         '''
         if self.caller.__check_for_attr__('sftp'):
-            for (dirpath,dirnames,filenames) in os.walk(local_path):
-                for dirname in sorted(dirnames):
-                    local_dir_path = os.path.join(dirpath,dirname)
-                    tmp_rpath = local_dir_path[len(local_path):]
-                    if tmp_rpath.startswith(os.path.sep):
-                        tmp_rpath = tmp_rpath[1:]
-                    remote_dir_path = os.path.join(remote_path,tmp_rpath)
-                    if not dirname in self.list_dir(remote_path).readdir():
-                        self.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
-                for filename in filenames:
-                    local_file_path = os.path.join(dirpath,filename)
-                    remote_file_base = local_file_path[len(local_path):0-len(filename)]
-                    if remote_file_base.startswith('/'):
-                        remote_file_base = remote_file_base[1:]
-                    remote_file_path = os.path.join(os.path.join(remote_path,remote_file_base),filename)
-                    self.put_file(local_file_path,remote_file_path)
+            if os.path.isdir(local_path)==True:
+                try:
+                    self.mkdir(remote_path,os.stat(local_path).st_mode)
+                except libssh2.exceptions.SFTPProtocolError:
+                    pass
+                for (dirpath,dirnames,filenames) in os.walk(local_path):
+                    for dirname in sorted(dirnames):
+                        local_dir_path = os.path.join(dirpath,dirname)
+                        tmp_rpath = local_dir_path[len(local_path):]
+                        if tmp_rpath.startswith(os.path.sep):
+                            tmp_rpath = tmp_rpath[1:]
+                        remote_dir_path = os.path.join(remote_path,tmp_rpath)
+                        if not dirname in self.list_dir(remote_path).readdir():
+                            self.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
+                    for filename in filenames:
+                        local_file_path = os.path.join(dirpath,filename)
+                        remote_file_base = local_file_path[len(local_path):0-len(filename)]
+                        if remote_file_base.startswith('/'):
+                            remote_file_base = remote_file_base[1:]
+                        remote_file_path = os.path.join(os.path.join(remote_path,remote_file_base),filename)
+                        self.put_file(local_file_path,remote_file_path)
 
     def put_file(self,local_path,remote_path):
         '''

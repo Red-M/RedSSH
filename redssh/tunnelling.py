@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2019  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -150,6 +150,7 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
     wait_for_chan.set()
     threads = []
     while terminate.is_set()==False:
+        error = False
         try:
             with self._block_lock:
                 chan = listener.forward_accept()
@@ -159,13 +160,15 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
                     if terminate.is_set()==False:
                         chan = listener.forward_accept()
         except libssh2.exceptions.ChannelUnknownError:
+            error = True
             break
         if terminate.is_set()==True:
             break
-        thread = threading.Thread(target=remote_handle,args=(self,chan,host,port,terminate,error_level))
-        thread.name = 'remote_handle'
-        threads.append(thread)
-        thread.start()
+        if error==False:
+            thread = threading.Thread(target=remote_handle,args=(self,chan,host,port,terminate,error_level))
+            thread.name = 'remote_handle'
+            threads.append(thread)
+            thread.start()
     terminate.wait()
     for thread in threads:
         thread.join()
@@ -173,35 +176,36 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
 
 def remote_handle(self,chan,host,port,terminate,error_level):
     chan_eof = False
-    while terminate.is_set()==False and chan_eof!=True:
-        try:
-            request = socket.create_connection((host,port))
-        except Exception as e:
-            self._block(chan.close)
-            return()
+    try:
+        request = socket.create_connection((host,port))
+    except Exception as e:
+        self._block(chan.close)
+        return()
+    (r,w,x) = select.select([self.sock],[],[],self._select_tun_timeout)
+    if self.sock in r:
         for buf in self._read_iter(chan.read):
             if request.send(buf)<=0:
-                break
-        while terminate.is_set()==False and chan_eof!=True:
-            (r,w,x) = select.select([self.sock,request],[],[],self._select_tun_timeout)
-            if terminate.is_set()==True:
-                request.close()
-                self._block(chan.close)
                 return()
-            no_data = False
-            for buf in self._read_iter(chan.read):
-                if request.send(buf)<=0:
-                    no_data = True
-                    break
-            if no_data==True:
-                break
-            if request in r:
-                if self._block_write(chan.write,request.recv(1024))<=0:
-                    break
-            chan_eof = self._block(chan.eof)
-        request.close()
+    while terminate.is_set()==False and chan_eof!=True:
+        (r,w,x) = select.select([self.sock,request],[],[],self._select_tun_timeout)
         if terminate.is_set()==True:
+            request.close()
             self._block(chan.close)
+            return()
+        no_data = False
+
+        for buf in self._read_iter(chan.read):
+            if request.send(buf)<=0:
+                no_data = True
+                break
+        if no_data==True:
             break
+        if request in r:
+            if self._block_write(chan.write,request.recv(1024))<=0:
+                break
+        chan_eof = self._block(chan.eof)
+    request.close()
+    if terminate.is_set()==True:
+        self._block(chan.close)
 
 

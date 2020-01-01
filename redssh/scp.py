@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2019  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -97,7 +97,6 @@ class RedSCP(object):
         :type remote_path: ``str``
         :return: ``None``
         '''
-        print('PUT: '+remote_path)
         stat = os.stat(local_path)
         f = open(local_path,'rb',2097152)
         chan = self.caller._block(self.caller.session.scp_send64,remote_path,stat.st_mode & 0o777,stat.st_size,stat.st_mtime,stat.st_atime)
@@ -116,11 +115,10 @@ class RedSCP(object):
         '''
         (chan,file_info) = self.caller._block(self.caller.session.scp_recv2,file_path)
         if iter==True:
-            return(self.caller._read_iter(chan.read,True))
+            return(self.caller._read_iter(chan.read,True,file_info.st_size))
         elif iter==False:
             data = b''
-            iter = self.caller._read_iter(chan.read,True)
-            for chunk in iter:
+            for chunk in self.caller._read_iter(chan.read,True,file_info.st_size):
                 data+=chunk
             return(data)
 
@@ -134,6 +132,7 @@ class RedSCP(object):
         :param remote_path: The remote path to upload the ``local_path`` to.
         :type remote_path: ``str``
         '''
+        self.mkdir(remote_path,os.stat(local_path).st_mode)
         for (dirpath,dirnames,filenames) in os.walk(local_path):
             for dirname in dirnames:
                 local_dir_path = os.path.join(dirpath,dirname)
@@ -141,7 +140,7 @@ class RedSCP(object):
                 if tmp_rpath.startswith(os.path.sep):
                     tmp_rpath = tmp_rpath[1:]
                 remote_dir_path = os.path.join(remote_path,tmp_rpath)
-                if not dirname.encode('utf8') in self.list_dir(remote_path)['dirs']:
+                if not dirname.encode('utf8') in self.list_dir(remote_dir_path)['dirs']:
                     self.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
             for filename in filenames:
                 local_file_path = os.path.join(dirpath,filename)
