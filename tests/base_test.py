@@ -16,8 +16,11 @@ PUB_FILE = "%s.pub" % (PKEY_FILENAME,)
 
 class SSHSession(object):
     def __init__(self,hostname='127.0.0.1',port=2200,class_init={},connect_args={}):
+        self.connect_args = connect_args
+        self.connected_hostname = hostname
+        self.connected_port = port
         self.rs = redssh.RedSSH(**class_init)
-        self.rs.connect(hostname, port, **connect_args)
+        self.rs.connect(self.connected_hostname, self.connected_port, **self.connect_args)
 
     def wait_for(self, wait_string):
         if isinstance(wait_string,type('')):
@@ -42,9 +45,12 @@ class base_test(unittest.TestCase):
         self.bad_key_path = os.path.join(os.path.join(os.getcwd(),'tests'),'ssh_host_does_not_exist')
         self.ssh_servers = []
         self.ssh_sessions = []
-        self.server_hostname = '127.0.0.1'
+        self.server_bind_host = '127.0.0.1'
         _mask = int('0600') if sys.version_info <= (2,) else 0o600
         os.chmod(self.key_path, _mask)
+        self.remote_tunnel_hostname = 'google.com'
+        self.remote_tunnel_port = 80
+        self.remote_tunnel_bad_port = 90
         self.response_text = '<title>Error 404 (Not Found)!!1</title>'
         self.cur_dir = os.path.expanduser(os.path.dirname(__file__))
         # self.test_dir = os.path.join(self.cur_dir,'file_tests')
@@ -61,7 +67,7 @@ class base_test(unittest.TestCase):
     def start_ssh_server(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('127.0.0.1', 0))
+        sock.bind((self.server_bind_host, 0))
         server_port = sock.getsockname()[1]
         sock.close()
         server = OpenSSHServer(port=server_port,server_key=self.key_path)
@@ -86,7 +92,7 @@ class base_test(unittest.TestCase):
         for arg in conn_args:
             if not arg in connect_args:
                 connect_args.update({arg:conn_args[arg]})
-        sshs = SSHSession(self.server_hostname,server_port,class_init,connect_args)
+        sshs = SSHSession(self.server_bind_host,server_port,class_init,connect_args)
         self.ssh_sessions.append(sshs)
         return(sshs)
 

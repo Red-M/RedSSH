@@ -19,11 +19,8 @@ addons:
       - curl
       - wget
       - python3
-      #~ - python3-distutils
 
 install:
-  #~ - sudo -E apt update
-  #~ - sudo -E apt -yq --no-install-suggests --no-install-recommends install \-y make curl wget python3
   - sudo -E ./tests/scripts/install_root.sh TRAVIS 3
   - ./tests/scripts/install.sh TRAVIS 3
 

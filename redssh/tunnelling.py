@@ -19,6 +19,7 @@
 import sys
 import time
 import select
+import traceback
 import struct
 import socket
 import threading
@@ -56,7 +57,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
             print('Exception happened during processing of request from',client_address,file=sys.stderr)
         if error_level==enums.TunnelErrorLevel.debug:
             print('Exception happened during processing of request from',client_address,file=sys.stderr)
-            print(sys.last_value)
+            print(traceback.print_exc())
         elif error_level==enums.TunnelErrorLevel.error:
             super().handle_error(self,request,client_address)
 
@@ -79,7 +80,8 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                 if address_type == 1:  # IPv4
                     address = socket.inet_ntoa(self.request.recv(4))
                 elif address_type == 3:  # Domain name
-                    domain_length = ord(self.request.recv(1)[0])
+                    # domain_length = ord(self.request.recv(1)[0])
+                    domain_length = self.request.recv(1)[0]
                     address = self.request.recv(domain_length)
                 port = struct.unpack('!H', self.request.recv(2))[0]
                 try:
@@ -93,7 +95,7 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                     c_port = bind_address[1]
                     reply = struct.pack("!BBBBIH", self.server.socks_version, 0, 0, address_type, c_addr, c_port)
                 except Exception as err:
-                    self.handle_error(self.request,)
+                    self.handle_error(self.request,self.request.getpeername())
                     reply = self.generate_failed_reply(address_type, 5)
                 self.request.sendall(reply)
                 if reply[1] == 0 and cmd == 1:
@@ -116,24 +118,24 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
 
 def local_handler(self,terminate,request,remote_host,remote_port):
     chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
-    chan_eof = False
-    while terminate.is_set()==False and chan_eof!=True:
+    # chan_eof = False
+    while terminate.is_set()==False and self._block(chan.eof)!=True:
         (r,w,x) = select.select([request,self.sock],[],[],self._select_tun_timeout)
         no_data = False
         if terminate.is_set()==True:
             no_data = True
             break
         for buf in self._read_iter(chan.read):
-            if request.send(buf)<=0 or chan_eof==True or terminate.is_set()==True:
+            if request.send(buf)<=0 or self._block(chan.eof)==True or terminate.is_set()==True:
                 no_data = True
                 break
         if no_data==True:
             break
-        if request in r and terminate.is_set()==False and chan_eof!=True:
+        if request in r and terminate.is_set()==False and self._block(chan.eof)!=True:
             if self._block_write(chan.write,request.recv(1024))<=0 or terminate.is_set()==True:
                 break
-        chan_eof = self._block(chan.eof)
-        if terminate.is_set()==True or chan_eof==True:
+        # chan_eof = self._block(chan.eof)
+        if terminate.is_set()==True or self._block(chan.eof)==True:
             break
 
     if terminate.is_set()==True and chan.eof()==False:
@@ -185,6 +187,7 @@ def remote_handle(self,chan,host,port,terminate,error_level):
     if self.sock in r:
         for buf in self._read_iter(chan.read):
             if request.send(buf)<=0:
+                request.close()
                 return()
     while terminate.is_set()==False and chan_eof!=True:
         (r,w,x) = select.select([self.sock,request],[],[],self._select_tun_timeout)
@@ -197,6 +200,7 @@ def remote_handle(self,chan,host,port,terminate,error_level):
         for buf in self._read_iter(chan.read):
             if request.send(buf)<=0:
                 no_data = True
+                request.close()
                 break
         if no_data==True:
             break
@@ -205,7 +209,6 @@ def remote_handle(self,chan,host,port,terminate,error_level):
                 break
         chan_eof = self._block(chan.eof)
     request.close()
-    if terminate.is_set()==True:
-        self._block(chan.close)
+    self._block(chan.close)
 
 

@@ -78,7 +78,7 @@ class OpenSSHServer(object):
     def __del__(self):
         self.stop()
         try:
-            os.unlink(self.sshd_config)
             os.remove(self.sshd_config)
+            os.unlink(self.sshd_config)
         except:
             pass

@@ -605,6 +605,12 @@ class RedSSH(object):
                     (thread,queue,server,server_port) = self.tunnels[thread_type][option_string]
                     self.__shutdown_thread__(thread,queue,server)
             del self.tunnels
+            self.tunnels = {
+                enums.TunnelType.local.value:{},
+                enums.TunnelType.remote.value:{},
+                enums.TunnelType.dynamic.value:{},
+                enums.TunnelType.x11.value:{}
+            }
 
     def exit(self):
         '''
@@ -626,8 +632,6 @@ class RedSSH(object):
                 except:
                     pass
                 self.sock.close()
-                # if self.__check_for_attr__('x11_channels')==True:
-                    # del self.x11_channels
                 del self.channel,self.past_login,self._ssh_keepalive_thread
                 del self.session
                 del self.sock

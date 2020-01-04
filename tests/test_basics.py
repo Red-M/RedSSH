@@ -25,20 +25,21 @@ class RedSSHUnitTest(unittest_base):
 
     def test_basic_setenv(self):
         sshs = self.start_ssh_session()
-        sshs.wait_for(self.prompt)
-        sshs.sendline('echo')
         try:
-            sshs.rs.setenv('TEST','test') # I need to rewrite the test server at this point, this is crap.
+            sshs.rs.setenv('TEST','test') # There is something else at play here,
+            # this needs to be ran at a certain point in the session's lifetime.
         except:
             pass
+        sshs.wait_for(self.prompt)
+        sshs.sendline('echo')
 
-    # def test_basic_reconnect(self): # This is broken but should be working, I blame the test ssh server.
+    # def test_basic_reconnect(self):
         # sshs = self.start_ssh_session()
         # sshs.wait_for(self.prompt)
         # sshs.sendline('echo')
+        # sshs.wait_for(self.prompt)
         # sshs.rs.exit()
-        # sshs.conn_port = self.start_ssh_server()
-        # sshs._tests_connect()
+        # sshs.rs.connect(sshs.connected_hostname, sshs.connected_port,**sshs.connect_args)
         # sshs.wait_for(self.prompt)
         # sshs.sendline('echo')
 
