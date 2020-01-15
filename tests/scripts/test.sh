@@ -4,6 +4,7 @@ CI_SYSTEM=${1}
 PYTHON_VERSION=${2}
 
 if [ ! -z $CI_SYSTEM ] && [ ${CI_SYSTEM} != "LOCAL" ]; then
+    git checkout master
     eval "$(ssh-agent \-s)"
     chmod 600 ./tests/ssh_host_key
     ssh-add ./tests/ssh_host_key
