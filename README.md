@@ -32,7 +32,6 @@ I've found other automation libraries or solutions lacking, such as:
 
 
 # TO DO
-- SCP unit tests
 - More error based unit tests
 - More examples
 - Host based authentication
