@@ -10,6 +10,11 @@ if [ ! -z $CI_SYSTEM ] && [ ${CI_SYSTEM} != "LOCAL" ]; then
     ssh-add ./tests/ssh_host_key
 fi
 
+
+if [ -n $CI_SYSTEM ] && [ CI_SYSTEM == "GITLAB" ]; then
+    chmod 700 /builds /builds/Red_M
+fi
+
 if [ ! -z $CI_SYSTEM ] && [ ${CI_SYSTEM} == "TRAVIS" ]; then
     pip${PYTHON_VERSION} install --upgrade pytest coveralls pytest-cov pytest-xdist paramiko > /dev/null
     py.test --cov redssh

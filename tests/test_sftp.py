@@ -18,6 +18,43 @@ class RedSSHUnitTest(unittest_base):
         sshs.sendline('echo')
         sshs.rs.start_sftp()
 
+    def test_remove_and_rename_file_operations_via_sftp(self):
+        test_name = 'test_remove_and_rename_file_operations_via_sftp'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
+        sshs.rs.start_sftp()
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
+        dir_to_test = os.path.join(os.path.join(remote_path,'file_tests'),'c')
+        file_to_rename = os.path.join(os.path.join(remote_path,'file_tests'),'a')
+        renamed = os.path.join(os.path.join(remote_path,'file_tests'),'b')
+        sshs.rs.sftp.rename(file_to_rename,renamed)
+        sshs.rs.sftp.mkdir(dir_to_test)
+        sshs.rs.sftp.rmdir(dir_to_test)
+
+    def test_symblink_file_operations_via_sftp(self):
+        test_name = 'test_symblink_file_operations_via_sftp'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
+        sshs.rs.start_sftp()
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
+        file_to_smblink = os.path.join(os.path.join(remote_path,'file_tests'),'a')
+        target = os.path.join(os.path.join(remote_path,'file_tests'),'b')
+        sshs.rs.sftp.symlink(file_to_smblink,target)
+        sshs.rs.sftp.lstat(file_to_smblink)
+        sshs.rs.sftp.unlink(target)
+
+    def test_stat_file_operations_via_sftp(self):
+        test_name = 'test_stat_file_operations_via_sftp'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
+        sshs.rs.start_sftp()
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
+        file_to_stat = os.path.join(os.path.join(remote_path,'file_tests'),'a')
+        sshs.rs.sftp.stat(file_to_stat)
+        sshs.rs.sftp.setstat(file_to_stat,oct(700))
+        sshs.rs.sftp.stat(file_to_stat)
+        sshs.rs.sftp.statvfs(file_to_stat)
+
     def test_copy_and_open_via_sftp(self):
         test_name = 'test_copy_and_open_via_sftp'
         remote_path = os.path.join(self.remote_dir,test_name)
