@@ -31,23 +31,6 @@ class RedSCP(object):
         self.caller = caller
         self._ls_re = re.compile(b'^(?P<file_type>[d\\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\\s+(?P<subitems>\\d+)\\s+(?P<owner_name>.+?)\\s+(?P<group_name>.+?)\\s+(?P<size>\\d+)\\s+(?P<datetime_m>[\\d-]+\\s+[\\d\\:\\.]+)\\s+(?P<tz>[\\-\\+]\\d+)\\s+(?P<file_name>.+?)$',re.MULTILINE)
 
-
-    def _exec(self, command):
-        out = b''
-        channel = self.caller._block(self.caller.session.open_session)
-        if self.caller.request_pty==True:
-            self.caller._block(channel.pty)
-        self.caller._block(channel.execute,command)
-        iter = self.caller._read_iter(channel.read,True)
-        for data in iter:
-            out+=data
-        self.caller._block(channel.wait_eof)
-        self.caller._block(channel.close)
-        ret = self.caller._block(channel.get_exit_status)
-        # (ret,sig,errmsg,lang) = self.caller._block(channel.get_exit_signal)
-        return(ret,out)
-
-
     def mkdir(self,remote_path,dir_mode):
         '''
         Makes a directory using SCP on the remote server.
@@ -58,8 +41,8 @@ class RedSCP(object):
         :type dir_mode: ``int``
         :return: ``None``
         '''
-        self._exec('mkdir -p '+remote_path)
-        self._exec('chmod '+oct(dir_mode)[3:]+' '+remote_path)
+        self.caller.execute_command('mkdir -p '+remote_path)
+        self.caller.execute_command('chmod '+oct(dir_mode)[3:]+' '+remote_path)
 
     def list_dir(self,remote_path):
         '''
@@ -76,7 +59,7 @@ class RedSCP(object):
         :return: ``dict``
         '''
         out = {'dirs':{},'files':{}}
-        (ret,cmd_out) = self._exec('\\ls -la --full-time "'+remote_path+'"')
+        (ret,cmd_out) = self.caller.execute_command('\\ls -la --full-time "'+remote_path+'"')
         if ret==0:
             for match in self._ls_re.finditer(cmd_out):
                 file_dict = match.groupdict()

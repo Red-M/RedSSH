@@ -408,6 +408,27 @@ class RedSSH(object):
         '''
         return(self._block(self.session.last_error))
 
+    def execute_command(self,command):
+        '''
+        Run a command. This will block as the command executes.
+
+        :param command: Command to execute.
+        :type command: ``str``
+        :return: ``tuple (int, str)`` - of ``(return_code, command_output)``
+        '''
+        out = b''
+        channel = self._block(self.session.open_session)
+        if self.request_pty==True:
+            self._block(channel.pty)
+        self._block(channel.execute,command)
+        iter = self._read_iter(channel.read,True)
+        for data in iter:
+            out+=data
+        self._block(channel.wait_eof)
+        self._block(channel.close)
+        ret = self._block(channel.get_exit_status)
+        return(ret,out)
+
     def start_sftp(self):
         '''
         Start the SFTP client.
