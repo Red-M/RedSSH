@@ -11,7 +11,7 @@ if [ ! -z $CI_SYSTEM ] && [ ${CI_SYSTEM} != "LOCAL" ]; then
 fi
 
 
-if [ -n $CI_SYSTEM ] && [ CI_SYSTEM == "GITLAB" ]; then
+if [ -n $CI_SYSTEM ] && [ ${CI_SYSTEM} == "GITLAB" ]; then
     chmod 700 /builds /builds/Red_M
 fi
 
