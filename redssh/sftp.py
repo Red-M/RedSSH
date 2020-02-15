@@ -38,6 +38,98 @@ class RedSFTP(object):
         self.client = self.caller._block(self.caller.session.sftp_init)
 
 
+    def rmdir(self,remote_path):
+        '''
+        Remove directory at ``remote_path``.
+
+        :param remote_path: Path to the directory to remove on the remote server.
+        :type remote_path: ``str``
+        :return: `int`
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            return(self.caller._block(self.client.rmdir,original_path))
+
+    def rename(self,original_path,destination_path):
+        '''
+        Rename file at ``original_path`` to ``destination_path``.
+
+        :param original_path: Original path on the remote server.
+        :type original_path: ``str``
+        :param destination_path: Destination path on the remote server.
+        :type destination_path: ``str``
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            self.caller._block(self.client.rename,original_path,destination_path)
+
+    def unlink(self,remote_path):
+        '''
+        Delete or unlink file at ``remote_path``.
+
+        :param remote_path: Path that file will be deleted or unlinked on the remote server.
+        :type remote_path: ``str``
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            self.caller._block(self.client.unlink,remote_path)
+
+    def symlink(self,path,target):
+        '''
+        Creates a symbolic link at ``path`` to then link to ``target``.
+
+        :param path: Path that the symbolic link will live at on the remote server.
+        :type path: ``str``
+        :param target: Path that the symbolic link at ``path`` will point to on the remote server.
+        :type target: ``str``
+        :return: `int`
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            return(self.caller._block(self.client.symlink,path,target))
+
+    def statvfs(self,remote_path):
+        '''
+        Gets file system information for ``remote_path``.
+
+        :param remote_path: Path that the file system information is going to be queried for on the remote server.
+        :type remote_path: ``str``
+        :return: `ssh2.sftp_handle.SFTPStatVFS` or an ``int`` of the error code from `ssh2`
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            return(self.caller._block(self.client.statvfs,remote_path))
+
+    def lstat(self,remote_path):
+        '''
+        Gets file/directory file permissions for ``remote_path`` but follows symbolic links.
+
+        :param remote_path: File/directory file permissions to get on the remote server.
+        :type remote_path: ``str``
+        :return: `ssh2.sftp_handle.SFTPAttributes` or `redssh.libssh2.LIBSSH2_ERROR_EAGAIN`
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            return(self.caller._block(self.client.lstat,remote_path))
+
+    def stat(self,remote_path):
+        '''
+        Gets file/directory file permissions for ``remote_path``.
+
+        :param remote_path: File/directory file permissions to get on the remote server.
+        :type remote_path: ``str``
+        :return: `ssh2.sftp_handle.SFTPAttributes` or `redssh.libssh2.LIBSSH2_ERROR_EAGAIN`
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            return(self.caller._block(self.client.stat,remote_path))
+
+    def setstat(self,remote_path,attrs):
+        '''
+        Sets file/directory file permissions for ``remote_path``.
+
+        :param remote_path: Path to make changes to on the remote server.
+        :type remote_path: ``str``
+        :param attrs: File mode for the ``remote_path`` given.
+        :type attrs: ``int``
+        :return: ``int``
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            return(self.caller._block(self.client.setstat,remote_path,attrs))
+
     def mkdir(self,remote_path,dir_mode):
         '''
         Makes a directory using SFTP on the remote server.

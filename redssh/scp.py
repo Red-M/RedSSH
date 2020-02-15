@@ -31,6 +31,7 @@ class RedSCP(object):
         self.caller = caller
         self._ls_re = re.compile(b'^(?P<file_type>[d\\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\\s+(?P<subitems>\\d+)\\s+(?P<owner_name>.+?)\\s+(?P<group_name>.+?)\\s+(?P<size>\\d+)\\s+(?P<datetime_m>[\\d-]+\\s+[\\d\\:\\.]+)\\s+(?P<tz>[\\-\\+]\\d+)\\s+(?P<file_name>.+?)$',re.MULTILINE)
 
+
     def mkdir(self,remote_path,dir_mode):
         '''
         Makes a directory using SCP on the remote server.

@@ -26,7 +26,8 @@ from ssh2.error_codes import LIBSSH2_ERROR_EAGAIN
 from ssh2.sftp import LIBSSH2_FXF_TRUNC,LIBSSH2_FXF_WRITE,LIBSSH2_FXF_READ,LIBSSH2_FXF_CREAT,LIBSSH2_SFTP_S_IRUSR,LIBSSH2_SFTP_S_IWUSR,LIBSSH2_SFTP_S_IRGRP,LIBSSH2_SFTP_S_IWGRP,LIBSSH2_SFTP_S_IROTH
 import ssh2.exceptions as exceptions
 try:
-    # this is awful, fix it.
+    # This is awful, fix it.
+    # The fix for this is in my fork of ssh2-python
     from ssh2.session import LIBSSH2_METHOD_KEX, LIBSSH2_METHOD_HOSTKEY, \
     LIBSSH2_METHOD_CRYPT_CS, LIBSSH2_METHOD_CRYPT_SC, LIBSSH2_METHOD_MAC_CS, \
     LIBSSH2_METHOD_MAC_SC, LIBSSH2_METHOD_COMP_CS, LIBSSH2_METHOD_COMP_SC, \
