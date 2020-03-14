@@ -103,6 +103,26 @@ class RedSSHUnitTest(unittest_base):
         assert failed==True
 
 
+    def test_file_open_via_sftpfile(self):
+        test_name = 'test_file_open_via_sftpfile'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
+        sshs.rs.start_sftp()
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
+        file_to_stat = os.path.join(remote_path,'test_sftp.py')
+        f = sshs.rs.sftp.open(file_to_stat,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR.True)
+        f.close()
+        f.open()
+        assert b'THIS IS A TEST' in f.read(iter=False)
+        f.seek(0)
+        file_data = b''
+        for data in f.read():
+            file_data+=data
+        assert b'THIS IS A TEST' in file_data
+        del file_data
+        f.rewind()
+
+
 if __name__ == '__main__':
     unittest.main()
 

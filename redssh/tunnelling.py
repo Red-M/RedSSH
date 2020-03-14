@@ -65,9 +65,9 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
 class LocalPortServerHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         try:
-            if self.server.socks_server==False:
+            if self.server.socks_server==False and self.caller._block(self.caller.channel.eof)!=True:
                 local_handler(self.caller,self.terminate,self.request,self.server.remote_host,self.server.remote_port)
-            elif self.server.socks_server==True:
+            elif self.server.socks_server==True and self.caller._block(self.caller.channel.eof)!=True:
                 # https://github.com/rushter/socks5
                 header = self.request.recv(2)
                 version, nmethods = struct.unpack("!BB", header)

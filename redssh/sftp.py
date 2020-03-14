@@ -47,7 +47,7 @@ class RedSFTP(object):
         :return: `int`
         '''
         if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.rmdir,original_path))
+            return(self.caller._block(self.client.rmdir,remote_path))
 
     def rename(self,original_path,destination_path):
         '''
@@ -149,20 +149,16 @@ class RedSFTP(object):
 
     def list_dir(self,remote_path):
         '''
-        Open a file object over SFTP on the remote server.
+        Opens a directory object over SFTP on the remote server.
 
         :param remote_path: Path that file is located at on the remote server.
         :type remote_path: ``str``
-        :param sftp_flags: Flags for the SFTP session to understand what you are going to do with the file.
-        :type sftp_flags: ``int``
-        :param file_mode: File mode for the file being opened.
-        :type file_mode: ``int``
-        :return: `ssh2.sftp.SFTPHandle`
+        :return: ``generator`` of ``tuple``
         '''
         if self.caller.__check_for_attr__('sftp'):
             return(self.caller._block(self.client.opendir,remote_path))
 
-    def open(self,remote_path,sftp_flags,file_mode):
+    def open(self,remote_path,sftp_flags,file_mode,file_obj=False):
         '''
         Open a file object over SFTP on the remote server.
 
@@ -175,7 +171,10 @@ class RedSFTP(object):
         :return: `ssh2.sftp.SFTPHandle`
         '''
         if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.open,remote_path,sftp_flags,file_mode))
+            if file_obj==False:
+                return(self.caller._block(self.client.open,remote_path,sftp_flags,file_mode))
+            elif file_obj==True:
+                return(RedSFTPFile(self,remote_path,sftp_flags,file_mode))
 
     def rewind(self,file_obj):
         '''
@@ -294,5 +293,41 @@ class RedSFTP(object):
             f = self.open(remote_path,libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
             self.write(f,open(local_path,'rb').read())
             self.close(f)
+
+class RedSFTPFile(object):
+    def __init__(self,sftp,remote_path,sftp_flags,file_mode):
+        self.sftp = sftp
+        self.remote_path = remote_path
+        self.sftp_flags = sftp_flags
+        self.file_mode = file_mode
+        self.open()
+
+    def __check_for_attr__(self,attr):
+        return(attr in self.__dict__)
+
+    def __del__(self):
+        self.close()
+
+    def open(self):
+        if not self.__check_for_attr__('file_obj'):
+            self.file_obj = self.sftp.caller._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
+
+    def rewind(self):
+        self.sftp.rewind(self.file_obj)
+
+    def seek(self,*args,**kwargs):
+        self.sftp.seek(self.file_obj,*args,**kwargs)
+
+    def write(self,*args,**kwargs):
+        self.sftp.write(self.file_obj,*args,**kwargs)
+
+    def read(self,*args,**kwargs):
+        self.sftp.read(self.file_obj,*args,**kwargs)
+
+    def close(self):
+        self.sftp.close(self.file_obj)
+        del self.file_obj
+
+
 
 
