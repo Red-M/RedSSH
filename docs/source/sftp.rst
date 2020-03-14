@@ -5,3 +5,8 @@ RedSSH.sftp
     :members:
     :inherited-members:
     :show-inheritance:
+
+.. autoclass:: redssh.sftp.RedSFTPFile
+    :members:
+    :inherited-members:
+    :show-inheritance:

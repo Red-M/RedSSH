@@ -25,13 +25,13 @@ DEFAULT_WRITE_MODE = libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2
 DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR | libssh2.LIBSSH2_SFTP_S_IRGRP | libssh2.LIBSSH2_SFTP_S_IWGRP | libssh2.LIBSSH2_SFTP_S_IROTH
 
 class RedSFTP(object):
-    def __init__(self,caller):
-        '''
-        .. warning::
-            This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
+    '''
+    .. warning::
+        This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
 
-        Set ``self.ignore_existing_dirs`` to ``False`` to make `redssh.sftp.RedSFTP.mkdir` not ignore already existing directories.
-        '''
+    Set ``self.ignore_existing_dirs`` to ``False`` to make `redssh.sftp.RedSFTP.mkdir` not ignore already existing directories.
+    '''
+    def __init__(self,caller):
         self.caller = caller
         self.enable_fsync = False
         self.ignore_existing_dirs = True
@@ -297,6 +297,20 @@ class RedSFTP(object):
             self.close(f)
 
 class RedSFTPFile(object):
+    '''
+    Interact with files over SFTP using a class rather than passing a file handle around.
+    .. warning::
+        This class simply uses the functions from `redssh.sftp.RedSFTP` minus any requirement for the `file_obj` argument for calls.
+
+    :param sftp: `redssh.sftp.RedSFTP` object from the session you'd like to interact via.
+    :type sftp: `redssh.sftp.RedSFTP`
+    :param remote_path: Path that file is located at on the remote server.
+    :type remote_path: ``str``
+    :param sftp_flags: Flags for the SFTP session to understand what you are going to do with the file.
+    :type sftp_flags: ``int``
+    :param file_mode: File mode for the file being opened.
+    :type file_mode: ``int``
+    '''
     def __init__(self,sftp,remote_path,sftp_flags,file_mode):
         self.sftp = sftp
         self.remote_path = remote_path
