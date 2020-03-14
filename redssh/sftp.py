@@ -27,7 +27,7 @@ DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR 
 class RedSFTP(object):
     '''
     .. warning::
-        This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
+    This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
 
     Set ``self.ignore_existing_dirs`` to ``False`` to make `redssh.sftp.RedSFTP.mkdir` not ignore already existing directories.
     '''
@@ -299,8 +299,9 @@ class RedSFTP(object):
 class RedSFTPFile(object):
     '''
     Interact with files over SFTP using a class rather than passing a file handle around.
+
     .. warning::
-        This class simply uses the functions from `redssh.sftp.RedSFTP` minus any requirement for the `file_obj` argument for calls.
+    This class simply uses the functions from `redssh.sftp.RedSFTP` minus any requirement for the `file_obj` argument for calls.
 
     :param sftp: `redssh.sftp.RedSFTP` object from the session you'd like to interact via.
     :type sftp: `redssh.sftp.RedSFTP`
