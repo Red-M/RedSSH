@@ -168,7 +168,9 @@ class RedSFTP(object):
         :type sftp_flags: ``int``
         :param file_mode: File mode for the file being opened.
         :type file_mode: ``int``
-        :return: `ssh2.sftp.SFTPHandle`
+        :param file_obj: Return a file object instead of a `ssh2.sftp.SFTPHandle`
+        :type file_obj: ``bool``
+        :return: `ssh2.sftp.SFTPHandle` or `redssh.sftp.RedSFTPFile`
         '''
         if self.caller.__check_for_attr__('sftp'):
             if file_obj==False:
@@ -313,16 +315,16 @@ class RedSFTPFile(object):
             self.file_obj = self.sftp.caller._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
 
     def rewind(self):
-        self.sftp.rewind(self.file_obj)
+        return(self.sftp.rewind(self.file_obj))
 
     def seek(self,*args,**kwargs):
-        self.sftp.seek(self.file_obj,*args,**kwargs)
+        return(self.sftp.seek(self.file_obj,*args,**kwargs))
 
     def write(self,*args,**kwargs):
-        self.sftp.write(self.file_obj,*args,**kwargs)
+        return(self.sftp.write(self.file_obj,*args,**kwargs))
 
     def read(self,*args,**kwargs):
-        self.sftp.read(self.file_obj,*args,**kwargs)
+        return(self.sftp.read(self.file_obj,*args,**kwargs))
 
     def close(self):
         self.sftp.close(self.file_obj)
