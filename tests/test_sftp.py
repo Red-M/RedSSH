@@ -28,7 +28,7 @@ class RedSSHUnitTest(unittest_base):
         file_to_rename = os.path.join(os.path.join(remote_path,'file_tests'),'a')
         renamed = os.path.join(os.path.join(remote_path,'file_tests'),'b')
         sshs.rs.sftp.rename(file_to_rename,renamed)
-        sshs.rs.sftp.mkdir(dir_to_test)
+        sshs.rs.sftp.mkdir(dir_to_test,16877)
         sshs.rs.sftp.rmdir(dir_to_test)
 
     def test_symblink_file_operations_via_sftp(self):
