@@ -50,8 +50,8 @@ class RedSSHUnitTest(unittest_base):
         sshs.rs.start_sftp()
         sshs.rs.sftp.put_folder(self.test_dir,remote_path)
         file_to_stat = os.path.join(os.path.join(remote_path,'file_tests'),'a')
-        sshs.rs.sftp.stat(file_to_stat)
-        sshs.rs.sftp.setstat(file_to_stat,oct(700))
+        attrs = sshs.rs.sftp.stat(file_to_stat)
+        sshs.rs.sftp.setstat(file_to_stat,attrs)
         sshs.rs.sftp.stat(file_to_stat)
         sshs.rs.sftp.statvfs(file_to_stat)
 
