@@ -3,6 +3,15 @@ CI_SYSTEM=${1}
 PYTHON_MAJOR_VERSION=${2}
 PYTHON_MINOR_VERSION=${3}
 
+if [ -n $CI_SYSTEM ] && [ ${CI_SYSTEM} == "GITLAB" ] && [ ! -z $(getent hosts deb-mirror | awk '{ print $1 }') ]; then
+    echo "deb http://deb-mirror/deb.debian.org/debian stable main non-free contrib
+deb-src http://deb-mirror/deb.debian.org/debian stable main non-free contrib
+deb http://deb-mirror/deb.debian.org/debian stable-updates main contrib non-free
+deb-src http://deb-mirror/deb.debian.org/debian stable-updates main contrib non-free
+$(cat /etc/apt/sources.list)" > /etc/apt/sources.list
+fi
+
+
 if [ ${CI_SYSTEM} == "TRAVIS" ]; then
     PYTHON_VERSION=${PYTHON_MAJOR_VERSION}
 else
