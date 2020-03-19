@@ -165,7 +165,7 @@ class RedSFTP(object):
             iter = self.open_dir(remote_path).readdir()
             for item in iter:
                 if len(item)==3 and remove_empty==True:
-                    if not item[0]==-37:
+                    if not item[0]==libssh2.LIBSSH2_ERROR_EAGAIN:
                         yield(item)
                 elif remove_empty==False:
                     yield(item)
