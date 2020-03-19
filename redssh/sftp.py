@@ -148,13 +148,36 @@ class RedSFTP(object):
                 if self.ignore_existing_dirs==False:
                     raise(e)
 
-    def list_dir(self,remote_path):
+    def list_dir(self,remote_path,remove_empty=False):
+        '''
+        Lists a directory over SFTP on the remote server.
+
+        :param remote_path: Path that file is located at on the remote server.
+        :type remote_path: ``str``
+        :param remove_empty: Remove EAGAIN records from the generator
+        :type remove_empty: ``bool``
+        :return: ``generator`` of ``tuple``
+        '''
+        if self.caller.__check_for_attr__('sftp'):
+            # This is a patch for ssh2.sftp_handle.SFTPHandle.readdir*()
+            # Because the ssh2-python implementation doesn't remove EAGAIN errors from the generator
+            # It also does a few other things that I'd like to rework to get some performance back.
+            iter = self.open_dir(remote_path).readdir()
+            for item in iter:
+                if len(item)==3 and remove_empty==True:
+                    if not item[0]==-37:
+                        yield(item)
+                elif remove_empty==False:
+                    yield(item)
+
+    def open_dir(self,remote_path):
         '''
         Opens a directory object over SFTP on the remote server.
 
         :param remote_path: Path that file is located at on the remote server.
         :type remote_path: ``str``
-        :return: ``generator`` of ``tuple``
+        :return: `ssh2.sftp_handle.SFTPHandle`
+        :raises: `ssh2.exceptions.SFTPHandleError` on errors opening directory.
         '''
         if self.caller.__check_for_attr__('sftp'):
             return(self.caller._block(self.client.opendir,remote_path))
@@ -272,7 +295,7 @@ class RedSFTP(object):
                         if tmp_rpath.startswith(os.path.sep):
                             tmp_rpath = tmp_rpath[1:]
                         remote_dir_path = os.path.join(remote_path,tmp_rpath)
-                        if not dirname in self.list_dir(remote_path).readdir():
+                        if not dirname in self.list_dir(remote_path):
                             self.mkdir(remote_dir_path,os.stat(local_dir_path).st_mode)
                     for filename in filenames:
                         local_file_path = os.path.join(dirpath,filename)

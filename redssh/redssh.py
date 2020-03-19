@@ -432,6 +432,7 @@ class RedSSH(object):
     def start_sftp(self):
         '''
         Start the SFTP client.
+        The client will be available at `self.sftp` and will be an instance of `redssh.sftp.RedSFTP`
 
         :return: ``None``
         '''

@@ -55,6 +55,21 @@ class RedSSHUnitTest(unittest_base):
         sshs.rs.sftp.stat(file_to_stat)
         sshs.rs.sftp.statvfs(file_to_stat)
 
+    def test_list_dir_via_sftp(self):
+        test_name = 'test_list_dir_via_sftp'
+        remote_path = os.path.join(self.remote_dir,test_name)
+        sshs = self.start_ssh_session(test_name)
+        sshs.rs.start_sftp()
+        sshs.rs.sftp.put_folder(self.test_dir,remote_path)
+        dir_to_list = os.path.join(remote_path,'file_tests')
+        for remove in [True,False]:
+            dir_list = sshs.rs.sftp.list_dir(dir_to_list,remove)
+            for item in dir_list:
+                if remove==True:
+                    assert item[0]!=redssh.libssh2.LIBSSH2_ERROR_EAGAIN and item[0]>0
+                elif remove==False:
+                    assert item[0]==redssh.libssh2.LIBSSH2_ERROR_EAGAIN or item[0]>0
+
     def test_copy_and_open_via_sftp(self):
         test_name = 'test_copy_and_open_via_sftp'
         remote_path = os.path.join(self.remote_dir,test_name)
@@ -101,7 +116,6 @@ class RedSSHUnitTest(unittest_base):
         except:
             failed = True
         assert failed==True
-
 
     def test_file_open_via_sftpfile(self):
         test_name = 'test_file_open_via_sftpfile'
