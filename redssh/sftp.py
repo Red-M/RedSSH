@@ -73,7 +73,7 @@ class RedSFTP(object):
 
     def fsync(self,file_obj):
         '''
-        Tells the remote file system to sync the data to be written to the file to the disk.
+        Tells the remote file system to synchronize the file to disk.
         This will only work if the SFTP session has ``enable_fsync`` set to ``True``
 
         :param file_obj: `ssh2.sftp.SFTPHandle` of the file on the remote server.
