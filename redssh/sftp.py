@@ -32,12 +32,55 @@ class RedSFTP(object):
 
     Set ``self.ignore_existing_dirs`` to ``False`` to make `redssh.sftp.RedSFTP.mkdir` not ignore already existing directories.
     '''
-    def __init__(self,caller):
-        self.caller = caller
+    def __init__(self,ssh_session):
+        self.ssh_session = ssh_session
         self.enable_fsync = False
         self.ignore_existing_dirs = True
-        self.client = self.caller._block(self.caller.session.sftp_init)
+        self.client = self.ssh_session._block(self.ssh_session.session.sftp_init)
 
+
+    def fsetstat(self,file_obj,attrs):
+        '''
+        Set file stat attributes for a `ssh2.sftp.SFTPHandle` object.
+
+        :param file_obj: `ssh2.sftp.SFTPHandle` of the file on the remote server.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
+        :param attrs: Attributes to set.
+        :type attrs: `ssh2.sftp.SFTPAttributes`
+        '''
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(file_obj.fsetstat,attrs))
+
+    def fstat(self,file_obj):
+        '''
+        Get file stat attributes from a `ssh2.sftp.SFTPHandle` object.
+
+        :param file_obj: `ssh2.sftp.SFTPHandle` of the file on the remote server.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
+        '''
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(file_obj.fstat))
+
+    def fstatvfs(self,file_obj):
+        '''
+        Get file system statistics for a `ssh2.sftp.SFTPHandle` object.
+
+        :param file_obj: `ssh2.sftp.SFTPHandle` of the file on the remote server.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
+        '''
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(file_obj.fstatvfs))
+
+    def fsync(self,file_obj):
+        '''
+        Tells the remote file system to sync the data to be written to the file to the disk.
+        This will only work if the SFTP session has ``enable_fsync`` set to ``True``
+
+        :param file_obj: `ssh2.sftp.SFTPHandle` of the file on the remote server.
+        :type file_obj: `ssh2.sftp.SFTPHandle`
+        '''
+        if self.ssh_session.__check_for_attr__('sftp') and self.enable_fsync==True:
+            self.ssh_session._block(file_obj.fsync)
 
     def rmdir(self,remote_path):
         '''
@@ -47,8 +90,8 @@ class RedSFTP(object):
         :type remote_path: ``str``
         :return: `int`
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.rmdir,remote_path))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.rmdir,remote_path))
 
     def rename(self,original_path,destination_path):
         '''
@@ -59,8 +102,8 @@ class RedSFTP(object):
         :param destination_path: Destination path on the remote server.
         :type destination_path: ``str``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            self.caller._block(self.client.rename,original_path,destination_path)
+        if self.ssh_session.__check_for_attr__('sftp'):
+            self.ssh_session._block(self.client.rename,original_path,destination_path)
 
     def unlink(self,remote_path):
         '''
@@ -69,8 +112,8 @@ class RedSFTP(object):
         :param remote_path: Path that file will be deleted or unlinked on the remote server.
         :type remote_path: ``str``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            self.caller._block(self.client.unlink,remote_path)
+        if self.ssh_session.__check_for_attr__('sftp'):
+            self.ssh_session._block(self.client.unlink,remote_path)
 
     def symlink(self,path,target):
         '''
@@ -82,8 +125,8 @@ class RedSFTP(object):
         :type target: ``str``
         :return: `int`
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.symlink,path,target))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.symlink,path,target))
 
     def statvfs(self,remote_path):
         '''
@@ -93,8 +136,8 @@ class RedSFTP(object):
         :type remote_path: ``str``
         :return: `ssh2.sftp_handle.SFTPStatVFS` or an ``int`` of the error code from `ssh2`
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.statvfs,remote_path))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.statvfs,remote_path))
 
     def lstat(self,remote_path):
         '''
@@ -104,8 +147,8 @@ class RedSFTP(object):
         :type remote_path: ``str``
         :return: `ssh2.sftp_handle.SFTPAttributes` or `redssh.libssh2.LIBSSH2_ERROR_EAGAIN`
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.lstat,remote_path))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.lstat,remote_path))
 
     def stat(self,remote_path):
         '''
@@ -115,8 +158,8 @@ class RedSFTP(object):
         :type remote_path: ``str``
         :return: `ssh2.sftp_handle.SFTPAttributes` or `redssh.libssh2.LIBSSH2_ERROR_EAGAIN`
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.stat,remote_path))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.stat,remote_path))
 
     def setstat(self,remote_path,attrs):
         '''
@@ -128,8 +171,8 @@ class RedSFTP(object):
         :type attrs: ``int``
         :return: ``int``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.setstat,remote_path,attrs))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.setstat,remote_path,attrs))
 
     def mkdir(self,remote_path,dir_mode):
         '''
@@ -141,9 +184,9 @@ class RedSFTP(object):
         :type dir_mode: ``int``
         :return: ``None``
         '''
-        if self.caller.__check_for_attr__('sftp'):
+        if self.ssh_session.__check_for_attr__('sftp'):
             try:
-                self.caller._block(self.client.mkdir,remote_path,dir_mode)
+                self.ssh_session._block(self.client.mkdir,remote_path,dir_mode)
             except libssh2.exceptions.SFTPProtocolError as e:
                 if self.ignore_existing_dirs==False:
                     raise(e)
@@ -158,7 +201,7 @@ class RedSFTP(object):
         :type remove_empty: ``bool``
         :return: ``generator`` of ``tuple``
         '''
-        if self.caller.__check_for_attr__('sftp'):
+        if self.ssh_session.__check_for_attr__('sftp'):
             # This is a patch for ssh2.sftp_handle.SFTPHandle.readdir*()
             # Because the ssh2-python implementation doesn't remove EAGAIN errors from the generator
             # It also does a few other things that I'd like to rework to get some performance back.
@@ -179,8 +222,8 @@ class RedSFTP(object):
         :return: `ssh2.sftp_handle.SFTPHandle`
         :raises: `ssh2.exceptions.SFTPHandleError` on errors opening directory.
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            return(self.caller._block(self.client.opendir,remote_path))
+        if self.ssh_session.__check_for_attr__('sftp'):
+            return(self.ssh_session._block(self.client.opendir,remote_path))
 
     def open(self,remote_path,sftp_flags,file_mode,file_obj=False):
         '''
@@ -196,9 +239,9 @@ class RedSFTP(object):
         :type file_obj: ``bool``
         :return: `ssh2.sftp.SFTPHandle` or `redssh.sftp.RedSFTPFile`
         '''
-        if self.caller.__check_for_attr__('sftp'):
+        if self.ssh_session.__check_for_attr__('sftp'):
             if file_obj==False:
-                return(self.caller._block(self.client.open,remote_path,sftp_flags,file_mode))
+                return(self.ssh_session._block(self.client.open,remote_path,sftp_flags,file_mode))
             elif file_obj==True:
                 return(RedSFTPFile(self,remote_path,sftp_flags,file_mode))
 
@@ -210,8 +253,8 @@ class RedSFTP(object):
         :type file_obj: `ssh2.sftp.SFTPHandle`
         :return: ``None``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            self.caller._block(file_obj.rewind)
+        if self.ssh_session.__check_for_attr__('sftp'):
+            self.ssh_session._block(file_obj.rewind)
 
     def seek(self,file_obj,offset):
         '''
@@ -223,8 +266,8 @@ class RedSFTP(object):
         :type offset: ``int``
         :return: ``None``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            self.caller._block(file_obj.seek64,offset)
+        if self.ssh_session.__check_for_attr__('sftp'):
+            self.ssh_session._block(file_obj.seek64,offset)
 
     def write(self,file_obj,data_bytes):
         '''
@@ -236,8 +279,8 @@ class RedSFTP(object):
         :type data_bytes: ``byte str``
         :return: ``None``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            self.caller._block_write(file_obj.write,data_bytes)
+        if self.ssh_session.__check_for_attr__('sftp'):
+            self.ssh_session._block_write(file_obj.write,data_bytes)
 
     def read(self,file_obj,iter=True):
         '''
@@ -249,12 +292,12 @@ class RedSFTP(object):
         :type iter: ``bool``
         :return: ``byte str`` or ``iter``
         '''
-        if self.caller.__check_for_attr__('sftp'):
+        if self.ssh_session.__check_for_attr__('sftp'):
             if iter==True:
-                return(self.caller._read_iter(file_obj.read,True))
+                return(self.ssh_session._read_iter(file_obj.read,True))
             elif iter==False:
                 data = b''
-                for chunk in self.caller._read_iter(file_obj.read,True):
+                for chunk in self.ssh_session._read_iter(file_obj.read,True):
                     data+=chunk
                 return(data)
 
@@ -266,10 +309,9 @@ class RedSFTP(object):
         :type file_obj: `ssh2.sftp.SFTPHandle`
         :return: ``None``
         '''
-        if self.caller.__check_for_attr__('sftp'):
-            if self.enable_fsync==True:
-                self.caller._block(file_obj.fsync)
-            self.caller._block(file_obj.close)
+        if self.ssh_session.__check_for_attr__('sftp'):
+            self.fsync(file_obj)
+            self.ssh_session._block(file_obj.close)
 
     def put_folder(self,local_path,remote_path):
         '''
@@ -282,7 +324,7 @@ class RedSFTP(object):
         :param remote_path: The remote path to upload the ``local_path`` to.
         :type remote_path: ``str``
         '''
-        if self.caller.__check_for_attr__('sftp'):
+        if self.ssh_session.__check_for_attr__('sftp'):
             if os.path.isdir(local_path)==True:
                 try:
                     self.mkdir(remote_path,os.stat(local_path).st_mode)
@@ -315,7 +357,7 @@ class RedSFTP(object):
         :param remote_path: The remote path to upload the ``local_path`` to.
         :type remote_path: ``str``
         '''
-        if self.caller.__check_for_attr__('sftp'):
+        if self.ssh_session.__check_for_attr__('sftp'):
             f = self.open(remote_path,libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC,os.stat(local_path).st_mode)
             self.write(f,open(local_path,'rb').read())
             self.close(f)
@@ -350,8 +392,23 @@ class RedSFTPFile(object):
         self.close()
 
     def open(self):
-        if not self.__check_for_attr__('file_obj'):
-            self.file_obj = self.sftp.caller._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
+        if self.__check_for_attr__('file_obj')==False:
+            self.file_obj = self.sftp.ssh_session._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
+
+    def fsetstat(self,*args,**kwargs):
+        return(self.sftp.fsetstat(self.file_obj,*args,**kwargs))
+
+    def fstat(self):
+        return(self.sftp.fstat(self.file_obj))
+
+    def fstatvfs(self):
+        return(self.sftp.fstatvfs(self.file_obj))
+
+    def fsync(self):
+        return(self.sftp.fsync(self.file_obj))
+
+    def read(self,*args,**kwargs):
+        return(self.sftp.read(self.file_obj,*args,**kwargs))
 
     def rewind(self):
         return(self.sftp.rewind(self.file_obj))
@@ -362,12 +419,10 @@ class RedSFTPFile(object):
     def write(self,*args,**kwargs):
         return(self.sftp.write(self.file_obj,*args,**kwargs))
 
-    def read(self,*args,**kwargs):
-        return(self.sftp.read(self.file_obj,*args,**kwargs))
-
     def close(self):
-        self.sftp.close(self.file_obj)
-        del self.file_obj
+        if self.__check_for_attr__('file_obj')==True:
+            self.sftp.close(self.file_obj)
+            del self.file_obj
 
 
 

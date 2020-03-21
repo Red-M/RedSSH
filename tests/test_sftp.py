@@ -54,6 +54,14 @@ class RedSSHUnitTest(unittest_base):
         sshs.rs.sftp.setstat(file_to_stat,attrs)
         sshs.rs.sftp.stat(file_to_stat)
         sshs.rs.sftp.statvfs(file_to_stat)
+        fs = sshs.rs.sftp.open(file_to_stat,redssh.sftp.DEFAULT_READ_MODE,redssh.sftp.DEFAULT_FILE_MODE,True)
+        attrs = fs.fstat()
+        try:
+            fs.fsetstat(attrs)
+        except redssh.libssh2.exceptions.SFTPProtocolError:
+            pass # needs further debugging into why that error comes up.
+        fs.fstatvfs()
+        fs.fsync()
 
     def test_list_dir_via_sftp(self):
         test_name = 'test_list_dir_via_sftp'

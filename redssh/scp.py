@@ -23,12 +23,12 @@ from redssh import libssh2
 from redssh import exceptions
 
 class RedSCP(object):
-    def __init__(self,caller):
-        '''
-        .. warning::
-            This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
-        '''
-        self.caller = caller
+    '''
+    .. warning::
+        This will only interact with the remote server as the user you logged in as, not the current user you are running commands as.
+    '''
+    def __init__(self,ssh_session):
+        self.ssh_session = ssh_session
         self._ls_re = re.compile(b'^(?P<file_type>[d\\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\\s+(?P<subitems>\\d+)\\s+(?P<owner_name>.+?)\\s+(?P<group_name>.+?)\\s+(?P<size>\\d+)\\s+(?P<datetime_m>[\\d-]+\\s+[\\d\\:\\.]+)\\s+(?P<tz>[\\-\\+]\\d+)\\s+(?P<file_name>.+?)$',re.MULTILINE)
 
 
@@ -42,8 +42,8 @@ class RedSCP(object):
         :type dir_mode: ``int``
         :return: ``None``
         '''
-        self.caller.execute_command('mkdir -p '+remote_path)
-        self.caller.execute_command('chmod '+oct(dir_mode)[3:]+' '+remote_path)
+        self.ssh_session.execute_command('mkdir -p '+remote_path)
+        self.ssh_session.execute_command('chmod '+oct(dir_mode)[3:]+' '+remote_path)
 
     def list_dir(self,remote_path):
         '''
@@ -60,7 +60,7 @@ class RedSCP(object):
         :return: ``dict``
         '''
         out = {'dirs':{},'files':{}}
-        (ret,cmd_out) = self.caller.execute_command('\\ls -la --full-time "'+remote_path+'"')
+        (ret,cmd_out) = self.ssh_session.execute_command('\\ls -la --full-time "'+remote_path+'"')
         if ret==0:
             for match in self._ls_re.finditer(cmd_out):
                 file_dict = match.groupdict()
@@ -83,11 +83,11 @@ class RedSCP(object):
         '''
         stat = os.stat(local_path)
         f = open(local_path,'rb',2097152)
-        chan = self.caller._block(self.caller.session.scp_send64,remote_path,stat.st_mode & 0o777,stat.st_size,stat.st_mtime,stat.st_atime)
+        chan = self.ssh_session._block(self.ssh_session.session.scp_send64,remote_path,stat.st_mode & 0o777,stat.st_size,stat.st_mtime,stat.st_atime)
         for data in f:
-            self.caller._block_write(chan.write,data)
-        self.caller._block(chan.send_eof)
-        self.caller._block(chan.close)
+            self.ssh_session._block_write(chan.write,data)
+        self.ssh_session._block(chan.send_eof)
+        self.ssh_session._block(chan.close)
 
     def read(self,file_path,iter=True):
         '''
@@ -97,12 +97,12 @@ class RedSCP(object):
         :type file_path: ``str``
         :return: ``byte str`` or ``iter``
         '''
-        (chan,file_info) = self.caller._block(self.caller.session.scp_recv2,file_path)
+        (chan,file_info) = self.ssh_session._block(self.ssh_session.session.scp_recv2,file_path)
         if iter==True:
-            return(self.caller._read_iter(chan.read,True,file_info.st_size))
+            return(self.ssh_session._read_iter(chan.read,True,file_info.st_size))
         elif iter==False:
             data = b''
-            for chunk in self.caller._read_iter(chan.read,True,file_info.st_size):
+            for chunk in self.ssh_session._read_iter(chan.read,True,file_info.st_size):
                 data+=chunk
             return(data)
 
