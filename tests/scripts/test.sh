@@ -12,6 +12,7 @@ fi
 
 
 if [ -n $CI_SYSTEM ] && [ ${CI_SYSTEM} == "GITLAB" ]; then
+    git branch master
     chmod 700 /builds /builds/Red_M
 fi
 
