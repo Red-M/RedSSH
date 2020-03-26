@@ -489,7 +489,7 @@ class RedSSH(object):
             thread_terminate = threading.Event()
 
             class SubHander(tunnelling.LocalPortServerHandler):
-                caller = self
+                ssh_session = self
                 chain_host = remote_host
                 chain_port = remote_port
                 terminate = thread_terminate
@@ -557,7 +557,7 @@ class RedSSH(object):
             thread_terminate = threading.Event()
 
             class SubHander(tunnelling.LocalPortServerHandler):
-                caller = self
+                ssh_session = self
                 chain_host = None
                 chain_port = None
                 terminate = thread_terminate

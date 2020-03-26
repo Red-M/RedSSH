@@ -33,12 +33,20 @@ try:
 except ImportError:
     import socketserver as SocketServer
 
+
+def check_closed(ssh_session,chan=None):
+    if chan==None:
+        return(ssh_session._block(ssh_session.channel.eof)==True)
+    else:
+        return(ssh_session._block(ssh_session.channel.eof)==True or ssh_session._block(chan.eof)==True)
+
+
 class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
     def __init__(self,bind_arg,handler,caller,remote_host,remote_port,wchan,error_level):
-        self.caller = caller
+        self.ssh_session = caller
         self.remote_host = remote_host
         self.remote_port = remote_port
         self.wchan = wchan
@@ -65,9 +73,9 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
 class LocalPortServerHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         try:
-            if self.server.socks_server==False and self.caller._block(self.caller.channel.eof)!=True:
-                local_handler(self.caller,self.terminate,self.request,self.server.remote_host,self.server.remote_port)
-            elif self.server.socks_server==True and self.caller._block(self.caller.channel.eof)!=True:
+            if self.server.socks_server==False and check_closed(self.ssh_session)==False:
+                local_handler(self.ssh_session,self.terminate,self.request,self.server.remote_host,self.server.remote_port)
+            elif self.server.socks_server==True and check_closed(self.ssh_session)==False:
                 # https://github.com/rushter/socks5
                 header = self.request.recv(2)
                 version, nmethods = struct.unpack("!BB", header)
@@ -99,11 +107,11 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                     reply = self.generate_failed_reply(address_type, 5)
                 self.request.sendall(reply)
                 if reply[1] == 0 and cmd == 1:
-                    local_handler(self.caller,self.terminate,self.request,address,port)
+                    local_handler(self.ssh_session,self.terminate,self.request,address,port)
                 else:
                     self.server.close_request(self.request)
         finally:
-            if self.terminate.is_set()==True:
+            if self.terminate.is_set()==True or check_closed(self.ssh_session,self.ssh_session.channel)==True:
                 self.server.shutdown()
 
     def get_available_methods(self, n):
@@ -116,30 +124,30 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
         return(struct.pack("!BBBBIH", self.server.socks_version, error_number, 0, address_type, 0, 0))
 
 
-def local_handler(self,terminate,request,remote_host,remote_port):
-    chan = self._block(self.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
+def local_handler(ssh_session,terminate,request,remote_host,remote_port):
+    chan = ssh_session._block(ssh_session.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
     # chan_eof = False
-    while terminate.is_set()==False and self._block(chan.eof)!=True:
-        (r,w,x) = select.select([request,self.sock],[],[],self._select_tun_timeout)
+    while terminate.is_set()==False and check_closed(ssh_session,chan)==False:
+        (r,w,x) = select.select([request,ssh_session.sock],[],[],ssh_session._select_tun_timeout)
         no_data = False
         if terminate.is_set()==True:
             no_data = True
             break
-        for buf in self._read_iter(chan.read):
-            if request.send(buf)<=0 or self._block(chan.eof)==True or terminate.is_set()==True:
+        for buf in ssh_session._read_iter(chan.read):
+            if request.send(buf)<=0 or check_closed(ssh_session,chan)==True or terminate.is_set()==True:
                 no_data = True
                 break
         if no_data==True:
             break
-        if request in r and terminate.is_set()==False and self._block(chan.eof)!=True:
-            if self._block_write(chan.write,request.recv(1024))<=0 or terminate.is_set()==True:
+        if request in r and terminate.is_set()==False and check_closed(ssh_session,chan)==False:
+            if ssh_session._block_write(chan.write,request.recv(1024))<=0 or terminate.is_set()==True:
                 break
-        # chan_eof = self._block(chan.eof)
-        if terminate.is_set()==True or self._block(chan.eof)==True:
+        # chan_eof = ssh_session._block(chan.eof)
+        if terminate.is_set()==True or check_closed(ssh_session,chan)==True:
             break
 
     if terminate.is_set()==True and chan.eof()==False:
-        self._block(chan.close)
+        ssh_session._block(chan.close)
     request.close()
 
 
@@ -147,18 +155,18 @@ def local_handler(self,terminate,request,remote_host,remote_port):
 
 
 
-def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_chan,error_level):
-    listener = self._block(self.session.forward_listen_ex,bind_addr,local_port,0,1024)
+def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wait_for_chan,error_level):
+    listener = ssh_session._block(ssh_session.session.forward_listen_ex,bind_addr,local_port,0,1024)
     wait_for_chan.set()
     threads = []
-    while terminate.is_set()==False:
+    while terminate.is_set()==False and check_closed(ssh_session)==False:
         error = False
         try:
-            with self._block_lock:
+            with ssh_session._block_lock:
                 chan = listener.forward_accept()
             while chan==libssh2.LIBSSH2_ERROR_EAGAIN and terminate.is_set()==False:
-                self._block_select()
-                with self._block_lock:
+                ssh_session._block_select()
+                with ssh_session._block_lock:
                     if terminate.is_set()==False:
                         chan = listener.forward_accept()
         except libssh2.exceptions.ChannelUnknownError:
@@ -167,7 +175,7 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
         if terminate.is_set()==True:
             break
         if error==False:
-            thread = threading.Thread(target=remote_handle,args=(self,chan,host,port,terminate,error_level))
+            thread = threading.Thread(target=remote_handle,args=(ssh_session,chan,host,port,terminate,error_level))
             thread.name = 'remote_handle'
             threads.append(thread)
             thread.start()
@@ -176,28 +184,28 @@ def remote_tunnel_server(self,host,port,bind_addr,local_port,terminate,wait_for_
         thread.join()
 
 
-def remote_handle(self,chan,host,port,terminate,error_level):
+def remote_handle(ssh_session,chan,host,port,terminate,error_level):
     chan_eof = False
     try:
         request = socket.create_connection((host,port))
     except Exception as e:
-        self._block(chan.close)
+        ssh_session._block(chan.close)
         return()
-    (r,w,x) = select.select([self.sock],[],[],self._select_tun_timeout)
-    if self.sock in r:
-        for buf in self._read_iter(chan.read):
+    (r,w,x) = select.select([ssh_session.sock],[],[],ssh_session._select_tun_timeout)
+    if ssh_session.sock in r:
+        for buf in ssh_session._read_iter(chan.read):
             if request.send(buf)<=0:
                 request.close()
                 return()
     while terminate.is_set()==False and chan_eof!=True:
-        (r,w,x) = select.select([self.sock,request],[],[],self._select_tun_timeout)
+        (r,w,x) = select.select([ssh_session.sock,request],[],[],ssh_session._select_tun_timeout)
         if terminate.is_set()==True:
             request.close()
-            self._block(chan.close)
+            ssh_session._block(chan.close)
             return()
         no_data = False
 
-        for buf in self._read_iter(chan.read):
+        for buf in ssh_session._read_iter(chan.read):
             if request.send(buf)<=0:
                 no_data = True
                 request.close()
@@ -205,10 +213,10 @@ def remote_handle(self,chan,host,port,terminate,error_level):
         if no_data==True:
             break
         if request in r:
-            if self._block_write(chan.write,request.recv(1024))<=0:
+            if ssh_session._block_write(chan.write,request.recv(1024))<=0:
                 break
-        chan_eof = self._block(chan.eof)
+        chan_eof = check_closed(ssh_session,chan)
     request.close()
-    self._block(chan.close)
+    ssh_session._block(chan.close)
 
 

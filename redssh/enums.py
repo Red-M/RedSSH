@@ -32,5 +32,5 @@ class TunnelType(enum.Enum):
 class TunnelErrorLevel(enum.Enum):
     none = 0
     warn = 1
-    debug = 2
-    error = 3
+    error = 2
+    debug = 3
