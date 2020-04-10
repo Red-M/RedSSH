@@ -26,6 +26,6 @@
 VERSION = u'2.2.2'
 
 from redssh.redssh import RedSSH
-from redssh.redssh import exceptions
+from redssh import exceptions
 import redssh.libssh2 as libssh2
 
