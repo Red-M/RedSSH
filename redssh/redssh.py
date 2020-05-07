@@ -527,7 +527,7 @@ class RedSSH(object):
         if not option_string in self.tunnels[enums.TunnelType.remote.value]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
-            tun_thread = threading.Thread(target=tunnelling.remote_tunnel_server,args=(self,thread_terminate,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan,error_level))
+            tun_thread = threading.Thread(target=tunnelling.remote_tunnel_server,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan,error_level))
             tun_thread.daemon = True
             tun_thread.name = enums.TunnelType.remote.value+':'+option_string
             tun_thread.start()
