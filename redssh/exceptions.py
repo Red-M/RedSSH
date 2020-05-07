@@ -25,7 +25,7 @@ class AuthenticationFailedException(RedSSHException):
     '''
     Failed to authenticate via supplied methods.
     '''
-    def __init__(self, authentication):
+    def __init__(self,authentication):
         RedSSHException.__init__(self,'Failed to authenticated to remote server via: '+', '.join(authentication))
 
 

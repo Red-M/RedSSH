@@ -73,6 +73,7 @@ class RedSSHUnitTest(unittest_base):
         port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port)
         out = get_local('http://localhost:'+str(port))
         assert self.response_text in out
+        assert sshs.rs.tunnel_is_alive(redssh.enums.TunnelType.local,port,self.remote_tunnel_hostname,self.remote_tunnel_port)
 
     def test_dynamic_tunnel_read_write(self):
         sshs = self.start_ssh_session()

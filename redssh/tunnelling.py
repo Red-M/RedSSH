@@ -45,8 +45,9 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self,bind_arg,handler,caller,remote_host,remote_port,wchan,error_level):
+    def __init__(self,bind_arg,handler,caller,terminate,remote_host,remote_port,wchan,error_level):
         self.ssh_session = caller
+        self.terminate = terminate
         self.remote_host = remote_host
         self.remote_port = remote_port
         self.wchan = wchan
@@ -68,6 +69,9 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
             print(traceback.print_exc())
         elif error_level==enums.TunnelErrorLevel.error:
             super().handle_error(self,request,client_address)
+        self.terminate.set()
+        self.close_request(request)
+        self.shutdown()
 
 
 class LocalPortServerHandler(SocketServer.BaseRequestHandler):
