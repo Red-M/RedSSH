@@ -1,4 +1,5 @@
 tests/known_hosts
+tests/embedded_server/sshd_config_*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

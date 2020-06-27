@@ -68,7 +68,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
             print('Exception happened during processing of request from',client_address,file=sys.stderr)
             print(traceback.print_exc())
         elif error_level==enums.TunnelErrorLevel.error:
-            super().handle_error(self,request,client_address)
+            super().handle_error(request,client_address)
         self.terminate.set()
         self.close_request(request)
         self.shutdown()
@@ -144,7 +144,7 @@ def local_handler(ssh_session,terminate,request,remote_host,remote_port):
         if no_data==True:
             break
         if request in r and terminate.is_set()==False and check_closed(ssh_session,chan)==False:
-            if ssh_session._block_write(chan.write,request.recv(1024))<=0 or terminate.is_set()==True:
+            if ssh_session._block_write(chan.write,request.recv(4096))<=0 or terminate.is_set()==True:
                 break
         # chan_eof = ssh_session._block(chan.eof)
         if terminate.is_set()==True or check_closed(ssh_session,chan)==True:
@@ -217,7 +217,7 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level):
         if no_data==True:
             break
         if request in r:
-            if ssh_session._block_write(chan.write,request.recv(1024))<=0:
+            if ssh_session._block_write(chan.write,request.recv(4096))<=0:
                 break
         chan_eof = check_closed(ssh_session,chan)
     request.close()

@@ -8,8 +8,8 @@ pip${PYTHON_VERSION} install -e ./[docs]
 
 mkdir ./build
 cd ./build
-git clone https://github.com/Red-M/ssh2-python.git || true
-cd ./ssh2-python
+git clone https://github.com/Red-M/redlibssh2.git || true
+cd ./redlibssh2
 pip${PYTHON_VERSION} uninstall -y ssh2-python
 pip${PYTHON_VERSION} install -e ./
 cd ../../

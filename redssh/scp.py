@@ -88,6 +88,7 @@ class RedSCP(object):
             self.ssh_session._block_write(chan.write,data)
         self.ssh_session._block(chan.send_eof)
         self.ssh_session._block(chan.close)
+        f.close()
 
     def read(self,file_path,iter=True):
         '''
