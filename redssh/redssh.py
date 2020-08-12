@@ -182,6 +182,7 @@ class RedSSH(object):
 
     def _auth(self,username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys):
         auth_supported = self.session.userauth_list(username)
+        if not auth_supported: auth_supported = []
         auth_types_tried = []
 
         if 'publickey' in auth_supported:
