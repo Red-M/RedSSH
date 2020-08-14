@@ -182,41 +182,40 @@ class RedSSH(object):
 
     def _auth(self,username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys):
         auth_supported = self.session.userauth_list(username)
-        if auth_supported==None:
-            auth_supported = []
-        auth_types_tried = []
+        if isinstance(auth_supported,type([])):
+            auth_types_tried = []
 
-        if 'publickey' in auth_supported:
-            if allow_agent==True:
-                auth_types_tried.append('publickey')
-                if self._auth_attempt(self.session.agent_auth,username)==True:
-                    return()
-            elif not key_filepath==None:
-                if isinstance(key_filepath,type(''))==True:
-                    key_filepath = [key_filepath]
-                if isinstance(key_filepath,type([]))==True:
-                    if passphrase==None:
-                        passphrase = ''
-                    for private_key in key_filepath:
-                        if os.path.exists(private_key) and os.path.isfile(private_key):
-                            auth_types_tried.append('publickey')
-                            if self._auth_attempt(self.session.userauth_publickey_fromfile,username,private_key,passphrase)==True:
-                                return()
-            # elif host_based==True:
-                # auth_types_tried.append('hostbased')
-                # if res==self._auth_attempt(self.session.userauth_hostbased_fromfile,username,private_key,hostname,passphrase=passphrase):
-                    # return()
-        if not password==None:
-            if 'password' in auth_supported:
-                auth_types_tried.append('password')
-                if self._auth_attempt(self.session.userauth_password,username,password)==True:
-                    return()
-            if 'keyboard-interactive' in auth_supported:
-                auth_types_tried.append('keyboard-interactive') # not implemented in ssh2-python 0.18.0
-                # bugged in ssh2-python's implementation for 1.9.0 of libssh2
-                # but fixed in my fork. :)
-                if self._auth_attempt(self.session.userauth_keyboardinteractive,username,password)==True:
-                    return()
+            if 'publickey' in auth_supported:
+                if allow_agent==True:
+                    auth_types_tried.append('publickey')
+                    if self._auth_attempt(self.session.agent_auth,username)==True:
+                        return()
+                elif not key_filepath==None:
+                    if isinstance(key_filepath,type(''))==True:
+                        key_filepath = [key_filepath]
+                    if isinstance(key_filepath,type([]))==True:
+                        if passphrase==None:
+                            passphrase = ''
+                        for private_key in key_filepath:
+                            if os.path.exists(private_key) and os.path.isfile(private_key):
+                                auth_types_tried.append('publickey')
+                                if self._auth_attempt(self.session.userauth_publickey_fromfile,username,private_key,passphrase)==True:
+                                    return()
+                # elif host_based==True:
+                    # auth_types_tried.append('hostbased')
+                    # if res==self._auth_attempt(self.session.userauth_hostbased_fromfile,username,private_key,hostname,passphrase=passphrase):
+                        # return()
+            if not password==None:
+                if 'password' in auth_supported:
+                    auth_types_tried.append('password')
+                    if self._auth_attempt(self.session.userauth_password,username,password)==True:
+                        return()
+                if 'keyboard-interactive' in auth_supported:
+                    auth_types_tried.append('keyboard-interactive') # not implemented in ssh2-python 0.18.0
+                    # bugged in ssh2-python's implementation for 1.9.0 of libssh2
+                    # but fixed in my fork. :)
+                    if self._auth_attempt(self.session.userauth_keyboardinteractive,username,password)==True:
+                        return()
 
         if self.session.userauth_authenticated()==False:
             raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
