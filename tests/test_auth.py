@@ -30,6 +30,14 @@ class RedSSHUnitTest(unittest_base):
         except redssh.exceptions.AuthenticationFailedException:
             pass
 
+    def test_no_auth_offered(self):
+        failed = False
+        try:
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':None,'allow_agent':False})
+        except redssh.exceptions.NoAuthenticationOfferedException:
+            failed = True
+        assert failed==True
+
     def test_bad_agent_auth(self):
         try:
             sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True})

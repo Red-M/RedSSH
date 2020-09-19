@@ -294,7 +294,7 @@ class RedSSH(object):
 
     def connect(self,hostname,port=22,username='',password=None,
         allow_agent=False,host_based=None,key_filepath=None,passphrase=None,
-        look_for_keys=True,sock=None,timeout=None):
+        look_for_keys=False,sock=None,timeout=None):
         '''
         .. warning::
             Some authentication methods are not yet supported!
@@ -322,6 +322,8 @@ class RedSSH(object):
         :param timeout: Timeout for the socket connection to the remote server.
         :type timeout: ``float``
         '''
+        if password==None and allow_agent==False and host_based==None and key_filepath==None and look_for_keys==False:
+            raise(exceptions.NoAuthenticationOfferedException())
         if self.__check_for_attr__('past_login')==False:
             if sock==None:
                 __initial = time.time()
