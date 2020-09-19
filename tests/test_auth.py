@@ -33,7 +33,7 @@ class RedSSHUnitTest(unittest_base):
     def test_no_auth_offered(self):
         failed = False
         try:
-            sshs = self.start_ssh_session(class_init={},connect_args={'password':None,'allow_agent':False})
+            sshs = self.start_ssh_session(class_init={},connect_args={'password':None,'allow_agent':False,'key_filepath':None})
         except redssh.exceptions.NoAuthenticationOfferedException:
             failed = True
         assert failed==True
