@@ -10,6 +10,8 @@ pages:
         - public
     only:
     - master
+    - release/*
+    - develop
 
 tests_py3.7:
     image: debian:10
@@ -22,6 +24,8 @@ tests_py3.7:
         - htmlcov
     only:
     - master
+    - release/*
+    - develop
 
 tests_py3.5:
     image: debian:9
@@ -34,3 +38,5 @@ tests_py3.5:
         - htmlcov
     only:
     - master
+    - release/*
+    - develop
