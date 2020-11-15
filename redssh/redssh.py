@@ -516,7 +516,7 @@ class RedSSH(object):
 
         Forwards a port to the remote machine via the local machine the same way the ``-R`` option does for the OpenSSH client.
 
-        :param local_port: The local port on the remote side to connect to.
+        :param local_port: The local port on the remote side for clients to connect to.
         :type local_port: ``int``
         :param remote_host: The remote host to connect to via the local machine.
         :type remote_host: ``str``
