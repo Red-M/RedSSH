@@ -2,6 +2,7 @@ Contributing
 ===========
 
 Please sumbit all changes as pull requests on either bitbucket or github.
+When adding changes, make a new git branch off of `develop` and submit your merge request against `develop` and never make pull requests against `master`.
 
 Changes that do not pass the test suite or lower code coverage in the area of the change will not be accepted.
 Do note that due to the nature of how this library is working, even between 2 runs of the test suite, coverage can lower
