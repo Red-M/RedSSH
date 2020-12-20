@@ -25,7 +25,8 @@ with open('redssh/__init__.py', 'r') as fh:
     redssh_version = reg.findall(fh.read())[0]
 
 deps = [
-    'ssh2-python'
+    # 'ssh2-python'
+    'redlibssh2'
 ]
 
 doc_deps = [
