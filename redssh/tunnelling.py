@@ -66,7 +66,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
             print('Exception happened during processing of request from',client_address,file=sys.stderr)
         if error_level==enums.TunnelErrorLevel.debug:
             print('Exception happened during processing of request from',client_address,file=sys.stderr)
-            print(traceback.print_exc())
+            print(traceback.print_exc(),file=sys.stderr)
         elif error_level==enums.TunnelErrorLevel.error:
             super().handle_error(request,client_address)
         self.terminate.set()

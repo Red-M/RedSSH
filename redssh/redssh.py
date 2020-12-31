@@ -211,9 +211,7 @@ class RedSSH(object):
                     if self._auth_attempt(self.session.userauth_password,username,password)==True:
                         return()
                 if 'keyboard-interactive' in auth_supported:
-                    auth_types_tried.append('keyboard-interactive') # not implemented in ssh2-python 0.18.0
-                    # bugged in ssh2-python's implementation for 1.9.0 of libssh2
-                    # but fixed in my fork. :)
+                    auth_types_tried.append('keyboard-interactive')
                     if self._auth_attempt(self.session.userauth_keyboardinteractive,username,password)==True:
                         return()
 
@@ -239,8 +237,7 @@ class RedSSH(object):
         Returns what value was settled on during session negotiation.
         '''
         if self.__check_for_attr__('session')==True:
-            if 'methods' in dir(self.session): # remove once my fork is merged.
-                return(self._block(self.session.methods,method))
+            return(self._block(self.session.methods,method))
 
     def setenv(self, varname, value):
         '''
@@ -337,15 +334,13 @@ class RedSSH(object):
             self.session = libssh2.Session()
             # self.session.publickey_init()
 
-            if 'flag' in dir(self.session): # remove once my fork is merged.
-                if not self.set_flags=={}:
-                    for flag in self.set_flags:
-                        self.session.flag(flag, self.set_flags[flag])
+            if not self.set_flags=={}:
+                for flag in self.set_flags:
+                    self.session.flag(flag, self.set_flags[flag])
 
-            if 'method_pref' in dir(self.session): # remove once my fork is merged.
-                if not self.method_preferences=={}:
-                    for pref in self.method_preferences:
-                        self.session.method_pref(pref, self.method_preferences[pref])
+            if not self.method_preferences=={}:
+                for pref in self.method_preferences:
+                    self.session.method_pref(pref, self.method_preferences[pref])
 
             # if 'callback_set' in dir(self.session): # remove once my fork is merged.
                 # if not self.callbacks=={}:
