@@ -107,7 +107,9 @@ class RedSSH(object):
             self._ssh_keepalive_event.wait(timeout=timeout)
 
 
-    def _block_select(self):
+    def _block_select(self,_select_timeout=None):
+        if _select_timeout==None:
+            _select_timeout = self._select_timeout
         with self._block_lock:
             block_direction = self.session.block_directions()
             if block_direction==0:
@@ -123,20 +125,27 @@ class RedSSH(object):
         else:
             wfds = []
 
-        select.select(rfds,wfds,[],self._select_timeout)
+        select.select(rfds,wfds,[],_select_timeout)
 
 
     def _block(self,func,*args,**kwargs):
         if self.__shutdown_all__.is_set()==False:
+            default_str = 'sdkljfhklsdjf'
+            _select_timeout = kwargs.get('_select_timeout',default_str)
+            if _select_timeout==default_str:
+                _select_timeout = None
+            else:
+                _select_timeout = float(_select_timeout)
+                del kwargs['_select_timeout']
             with self._block_lock:
                 out = func(*args,**kwargs)
             while out==libssh2.LIBSSH2_ERROR_EAGAIN:
-                self._block_select()
+                self._block_select(_select_timeout)
                 with self._block_lock:
                     out = func(*args,**kwargs)
             return(out)
 
-    def _block_write(self,func,data):
+    def _block_write(self,func,data,_select_timeout=None):
         data_len = len(data)
         total_written = 0
         while total_written<data_len:
@@ -145,10 +154,10 @@ class RedSSH(object):
                     (rc,bytes_written) = func(data[total_written:])
                 total_written+=bytes_written
                 if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
-                    self._block_select()
+                    self._block_select(_select_timeout)
         return(total_written)
 
-    def _read_iter(self,func,block=False,max_read=-1):
+    def _read_iter(self,func,block=False,max_read=-1,_select_timeout=None):
         pos = 0
         remainder_len = 0
         remainder = b''
@@ -157,7 +166,7 @@ class RedSSH(object):
                 (size,data) = func()
             while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
                 if size==libssh2.LIBSSH2_ERROR_EAGAIN:
-                    self._block_select()
+                    self._block_select(_select_timeout)
                     if self.__shutdown_all__.is_set()==False:
                         with self._block_lock:
                             (size,data) = func()
@@ -173,7 +182,7 @@ class RedSSH(object):
                         else:
                             yield(data[pos:size])
                         pos = size
-                    self._block_select()
+                    self._block_select(_select_timeout)
                     with self._block_lock:
                         (size,data) = func()
                     pos = 0

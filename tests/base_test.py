@@ -51,6 +51,7 @@ class base_test(unittest.TestCase):
         self.remote_tunnel_hostname = 'google.com'
         self.remote_tunnel_port = 80
         self.remote_tunnel_bad_port = 90
+        self.error_level = redssh.enums.TunnelErrorLevel.debug
         self.response_text = '<title>Error 404 (Not Found)!!1</title>'
         self.cur_dir = os.path.expanduser(os.path.dirname(__file__))
         # self.test_dir = os.path.join(self.cur_dir,'file_tests')

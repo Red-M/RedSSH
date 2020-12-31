@@ -54,6 +54,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
         self.error_level = error_level
         self.socks_server = (self.remote_host==None and self.remote_port==None)
         self.socks_version = 5
+        self._select_tun_timeout = float(self.ssh_session._select_tun_timeout)
         super().__init__(bind_arg,handler)
 
     def server_activate(self):
@@ -78,7 +79,7 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         try:
             if self.server.socks_server==False and check_closed(self.ssh_session)==False:
-                local_handler(self.ssh_session,self.terminate,self.request,self.server.remote_host,self.server.remote_port)
+                local_handler(self.ssh_session,self.terminate,self.request,self.server.remote_host,self.server.remote_port,self.server._select_tun_timeout)
             elif self.server.socks_server==True and check_closed(self.ssh_session)==False:
                 # https://github.com/rushter/socks5
                 header = self.request.recv(2)
@@ -111,7 +112,7 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                     reply = self.generate_failed_reply(address_type, 5)
                 self.request.sendall(reply)
                 if reply[1] == 0 and cmd == 1:
-                    local_handler(self.ssh_session,self.terminate,self.request,address,port)
+                    local_handler(self.ssh_session,self.terminate,self.request,address,port,self.server._select_tun_timeout)
                 else:
                     self.server.close_request(self.request)
         finally:
@@ -128,23 +129,23 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
         return(struct.pack("!BBBBIH", self.server.socks_version, error_number, 0, address_type, 0, 0))
 
 
-def local_handler(ssh_session,terminate,request,remote_host,remote_port):
-    chan = ssh_session._block(ssh_session.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername())
+def local_handler(ssh_session,terminate,request,remote_host,remote_port,_select_timeout):
+    chan = ssh_session._block(ssh_session.session.direct_tcpip_ex,remote_host,remote_port,*request.getpeername(),_select_timeout=_select_timeout)
     # chan_eof = False
     while terminate.is_set()==False and check_closed(ssh_session,chan)==False:
-        (r,w,x) = select.select([request,ssh_session.sock],[],[],ssh_session._select_tun_timeout)
+        (r,w,x) = select.select([request,ssh_session.sock],[],[],_select_timeout)
         no_data = False
         if terminate.is_set()==True:
             no_data = True
             break
-        for buf in ssh_session._read_iter(chan.read):
+        for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
             if request.send(buf)<=0 or check_closed(ssh_session,chan)==True or terminate.is_set()==True:
                 no_data = True
                 break
         if no_data==True:
             break
         if request in r and terminate.is_set()==False and check_closed(ssh_session,chan)==False:
-            if ssh_session._block_write(chan.write,request.recv(4096))<=0 or terminate.is_set()==True:
+            if ssh_session._block_write(chan.write,request.recv(4096),_select_timeout=_select_timeout)<=0 or terminate.is_set()==True:
                 break
         # chan_eof = ssh_session._block(chan.eof)
         if terminate.is_set()==True or check_closed(ssh_session,chan)==True:
@@ -160,6 +161,7 @@ def local_handler(ssh_session,terminate,request,remote_host,remote_port):
 
 
 def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wait_for_chan,error_level):
+    _select_timeout = float(ssh_session._select_tun_timeout)
     listener = ssh_session._block(ssh_session.session.forward_listen_ex,bind_addr,local_port,0,1024)
     wait_for_chan.set()
     threads = []
@@ -169,7 +171,7 @@ def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wa
             with ssh_session._block_lock:
                 chan = listener.forward_accept()
             while chan==libssh2.LIBSSH2_ERROR_EAGAIN and terminate.is_set()==False:
-                ssh_session._block_select()
+                ssh_session._block_select(_select_timeout)
                 with ssh_session._block_lock:
                     if terminate.is_set()==False:
                         chan = listener.forward_accept()
@@ -179,7 +181,7 @@ def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wa
         if terminate.is_set()==True:
             break
         if error==False:
-            thread = threading.Thread(target=remote_handle,args=(ssh_session,chan,host,port,terminate,error_level))
+            thread = threading.Thread(target=remote_handle,args=(ssh_session,chan,host,port,terminate,error_level,_select_timeout))
             thread.name = 'remote_handle'
             threads.append(thread)
             thread.start()
@@ -188,28 +190,28 @@ def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wa
         thread.join()
 
 
-def remote_handle(ssh_session,chan,host,port,terminate,error_level):
+def remote_handle(ssh_session,chan,host,port,terminate,error_level,_select_timeout):
     chan_eof = False
     try:
         request = socket.create_connection((host,port))
     except Exception as e:
-        ssh_session._block(chan.close)
+        ssh_session._block(chan.close,_select_timeout=_select_timeout)
         return()
-    (r,w,x) = select.select([ssh_session.sock],[],[],ssh_session._select_tun_timeout)
+    (r,w,x) = select.select([ssh_session.sock],[],[],_select_timeout)
     if ssh_session.sock in r:
-        for buf in ssh_session._read_iter(chan.read):
+        for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
             if request.send(buf)<=0:
                 request.close()
                 return()
     while terminate.is_set()==False and chan_eof!=True:
-        (r,w,x) = select.select([ssh_session.sock,request],[],[],ssh_session._select_tun_timeout)
+        (r,w,x) = select.select([ssh_session.sock,request],[],[],_select_timeout)
         if terminate.is_set()==True:
             request.close()
-            ssh_session._block(chan.close)
+            ssh_session._block(chan.close,_select_timeout=_select_timeout)
             return()
         no_data = False
 
-        for buf in ssh_session._read_iter(chan.read):
+        for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
             if request.send(buf)<=0:
                 no_data = True
                 request.close()
@@ -217,10 +219,10 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level):
         if no_data==True:
             break
         if request in r:
-            if ssh_session._block_write(chan.write,request.recv(4096))<=0:
+            if ssh_session._block_write(chan.write,request.recv(4096),_select_timeout=_select_timeout)<=0:
                 break
         chan_eof = check_closed(ssh_session,chan)
     request.close()
-    ssh_session._block(chan.close)
+    ssh_session._block(chan.close,_select_timeout=_select_timeout)
 
 

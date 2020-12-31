@@ -65,22 +65,24 @@ class RedSSHUnitTest(unittest_base):
                 # pass
             # sshs.rs.close_tunnels()
 
+    # @pytest.mark.xfail
     def test_local_tunnel_read_write(self):
         sshs = self.start_ssh_session()
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
-        port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port)
+        port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(port))
         assert self.response_text in out
         assert sshs.rs.tunnel_is_alive(redssh.enums.TunnelType.local,port,self.remote_tunnel_hostname,self.remote_tunnel_port)
 
+    # @pytest.mark.xfail
     def test_dynamic_tunnel_read_write(self):
         sshs = self.start_ssh_session()
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
-        port = sshs.rs.dynamic_tunnel(0)
+        port = sshs.rs.dynamic_tunnel(0,error_level=self.error_level)
         out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(port),'https':'socks5://localhost:'+str(port)})
         assert self.response_text in out
 
@@ -96,7 +98,7 @@ class RedSSHUnitTest(unittest_base):
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
-        sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port)
+        sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(rem_port))
         assert self.response_text in out
 
@@ -112,15 +114,15 @@ class RedSSHUnitTest(unittest_base):
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
-        sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port)
+        sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(rem_port))
         assert self.response_text in out
 
-        local_port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port)
+        local_port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(local_port))
         assert self.response_text in out
 
-        dyn_port = sshs.rs.dynamic_tunnel(0)
+        dyn_port = sshs.rs.dynamic_tunnel(0,error_level=self.error_level)
         out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(dyn_port),'https':'socks5://localhost:'+str(dyn_port)})
         assert self.response_text in out
 
