@@ -46,7 +46,7 @@ class RedSSH(object):
     :type terminal: ``str``
     :param ssh_host_key_verification: Change the behaviour of remote host key verification. Can be set to one of the following values, ``strict``, ``warn``, ``auto_add`` or ``none``.
     :type ssh_host_key_verification: :class:`redssh.enums.SSHHostKeyVerify`
-    :param ssh_keepalive_interval: Enable or disable SSH keepalive packets, value is interval in seconds.
+    :param ssh_keepalive_interval: Enable or disable SSH keepalive packets, value is interval in seconds, ``0`` is off.
     :type ssh_keepalive_interval: ``float``
     :param set_flags: Not supported in ssh2-python 0.18.0
     :type set_flags: ``dict``
@@ -56,7 +56,7 @@ class RedSSH(object):
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None
         ,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
         ssh_keepalive_interval=0.0,set_flags={},method_preferences={},
-        callbacks={}):
+        callbacks={},auto_terminate_tunnels=False):
         self.debug = False
         self._auto_select_timeout_enabled = False
         self._select_timeout = 0.005
@@ -77,6 +77,7 @@ class RedSSH(object):
         self.set_flags = set_flags
         self.method_preferences = method_preferences
         self.callbacks = callbacks
+        self.auto_terminate_tunnels = auto_terminate_tunnels
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         if known_hosts==None:
@@ -103,7 +104,7 @@ class RedSSH(object):
         while self.__check_for_attr__('channel')==False:
             time.sleep(timeout)
         while self._ssh_keepalive_event.is_set()==False and self.__check_for_attr__('channel')==True:
-            timeout = self._block(self.session.keepalive_send)
+            timeout = self._block(self.session.keepalive_send,_select_timeout=self._select_timeout)
             self._ssh_keepalive_event.wait(timeout=timeout)
 
 
@@ -261,6 +262,16 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login'):
             self._block(self.channel.setenv,varname,value)
 
+    def check_closed(self,channel=None):
+        '''
+        Returns ``True`` or ``False`` when the main channel has recieved an ``EOF`` or an associated channel.
+        '''
+        if self.__check_for_attr__('session')==True and self.__check_for_attr__('channel')==True:
+            if channel==None:
+                return(self._block(self.channel.eof)==True)
+            else:
+                return(self._block(self.channel.eof)==True or self._block(channel.eof)==True)
+
     def check_host_key(self,hostname,port):
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
             return(None)
@@ -351,7 +362,7 @@ class RedSSH(object):
                 for pref in self.method_preferences:
                     self.session.method_pref(pref, self.method_preferences[pref])
 
-            # if 'callback_set' in dir(self.session): # remove once my fork is merged.
+            # if 'callback_set' in dir(self.session):
                 # if not self.callbacks=={}:
                     # for cbtype in self.callbacks:
                         # self.session.callback_set(cbtype, self.callbacks[cbtype])
@@ -363,16 +374,16 @@ class RedSSH(object):
             self._auth(username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys)
 
             self.session.set_blocking(False)
-            if not self.ssh_keepalive_interval==0:
+            self.channel = self._block(self.session.open_session)
+            if self.request_pty==True:
+                self._block(self.channel.pty,self.terminal)
+            if self.ssh_keepalive_interval>0:
                 self.session.keepalive_config(True, self.ssh_keepalive_interval)
                 self._ssh_keepalive_thread = threading.Thread(target=self.ssh_keepalive)
                 self._ssh_keepalive_event = threading.Event()
                 self._ssh_keepalive_thread.start()
-            self.channel = self._block(self.session.open_session)
-            if self.request_pty==True:
-                self._block(self.channel.pty,self.terminal)
 
-            # if 'callback_set' in dir(self.session): # remove once my fork is merged.
+            # if 'callback_set' in dir(self.session):
                 # self._forward_x11()
 
             self._block(self.channel.shell)

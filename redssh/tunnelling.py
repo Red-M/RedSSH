@@ -34,11 +34,8 @@ except ImportError:
     import socketserver as SocketServer
 
 
-def check_closed(ssh_session,chan=None):
-    if chan==None:
-        return(ssh_session._block(ssh_session.channel.eof)==True)
-    else:
-        return(ssh_session._block(ssh_session.channel.eof)==True or ssh_session._block(chan.eof)==True)
+def check_closed(ssh_session,chan=None): # Macro for tunnel checks.
+    return(ssh_session.check_closed(chan))
 
 
 class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
@@ -52,6 +49,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
         self.remote_port = remote_port
         self.wchan = wchan
         self.error_level = error_level
+        self.auto_terminate = bool(self.ssh_session.auto_terminate_tunnels)
         self.socks_server = (self.remote_host==None and self.remote_port==None)
         self.socks_version = 5
         self._select_tun_timeout = float(self.ssh_session._select_tun_timeout)
@@ -70,9 +68,11 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
             print(traceback.print_exc(),file=sys.stderr)
         elif error_level==enums.TunnelErrorLevel.error:
             super().handle_error(request,client_address)
-        self.terminate.set()
+        if self.auto_terminate==True:
+            self.terminate.set()
         self.close_request(request)
-        self.shutdown()
+        if self.auto_terminate==True:
+            self.shutdown()
 
 
 class LocalPortServerHandler(SocketServer.BaseRequestHandler):
@@ -162,6 +162,7 @@ def local_handler(ssh_session,terminate,request,remote_host,remote_port,_select_
 
 def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wait_for_chan,error_level):
     _select_timeout = float(ssh_session._select_tun_timeout)
+    auto_terminate = bool(ssh_session.auto_terminate_tunnels)
     listener = ssh_session._block(ssh_session.session.forward_listen_ex,bind_addr,local_port,0,1024)
     wait_for_chan.set()
     threads = []
@@ -178,10 +179,10 @@ def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wa
         except libssh2.exceptions.ChannelUnknownError:
             error = True
             break
-        if terminate.is_set()==True:
+        if terminate.is_set()==True or auto_terminate==False:
             break
-        if error==False:
-            thread = threading.Thread(target=remote_handle,args=(ssh_session,chan,host,port,terminate,error_level,_select_timeout))
+        if error==False or auto_terminate==False:
+            thread = threading.Thread(target=remote_handle,args=(ssh_session,chan,host,port,terminate,error_level,auto_terminate,_select_timeout))
             thread.name = 'remote_handle'
             threads.append(thread)
             thread.start()
@@ -190,7 +191,7 @@ def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wa
         thread.join()
 
 
-def remote_handle(ssh_session,chan,host,port,terminate,error_level,_select_timeout):
+def remote_handle(ssh_session,chan,host,port,terminate,error_level,auto_terminate,_select_timeout):
     chan_eof = False
     try:
         request = socket.create_connection((host,port))
@@ -223,6 +224,7 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level,_select_timeo
                 break
         chan_eof = check_closed(ssh_session,chan)
     request.close()
-    ssh_session._block(chan.close,_select_timeout=_select_timeout)
+    if auto_terminate==True:
+        ssh_session._block(chan.close,_select_timeout=_select_timeout)
 
 
