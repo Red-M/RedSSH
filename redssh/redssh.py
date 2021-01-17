@@ -374,14 +374,14 @@ class RedSSH(object):
             self._auth(username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys)
 
             self.session.set_blocking(False)
-            self.channel = self._block(self.session.open_session)
-            if self.request_pty==True:
-                self._block(self.channel.pty,self.terminal)
             if self.ssh_keepalive_interval>0:
                 self.session.keepalive_config(True, self.ssh_keepalive_interval)
                 self._ssh_keepalive_thread = threading.Thread(target=self.ssh_keepalive)
                 self._ssh_keepalive_event = threading.Event()
                 self._ssh_keepalive_thread.start()
+            self.channel = self._block(self.session.open_session)
+            if self.request_pty==True:
+                self._block(self.channel.pty,self.terminal)
 
             # if 'callback_set' in dir(self.session):
                 # self._forward_x11()
@@ -416,6 +416,18 @@ class RedSSH(object):
         if self.__check_for_attr__('past_login')==True:
             if self.past_login==True:
                 return(self._block_write(self.channel.write,string))
+        return(0)
+
+    def flush(self):
+        '''
+        Flush all data on the primary channel's stdin to the remote connection.
+        Only works if connected, otherwise returns ``0``.
+
+        :return: ``int`` - Amount of bytes sent to remote machine.
+        '''
+        if self.__check_for_attr__('past_login')==True:
+            if self.past_login==True:
+                return(self._block(self.channel.flush))
         return(0)
 
     def last_error(self):
