@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import requests # This requires the socks supported requests package,
 # installable via `pip install requests[socks]`.
-import redssh
 import getpass
+import redssh
 
 def main():
     username = input('Username: ')

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import redssh
 import getpass
+import redssh
 
 def main():
     username = input('Username: ')

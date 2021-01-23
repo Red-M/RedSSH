@@ -38,7 +38,9 @@ test_deps = [
     'jinja2',
     'requests[socks]',
     'coveralls',
-    'pytest-cov'
+    'pytest-cov',
+    'pylint',
+    'bandit'
 ]
 
 package_excludes = [

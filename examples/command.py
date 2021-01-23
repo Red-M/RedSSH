@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import redssh
 import getpass
+import redssh
 
 def wait_for(rs, wait_string):
     if isinstance(wait_string,type('')):
