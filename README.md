@@ -1,7 +1,9 @@
 # RedSSH
-[![Documentation Status](https://readthedocs.org/projects/redssh/badge/?version=latest)](https://redssh.readthedocs.io/en/latest/?badge=latest)
+![PyPI](https://img.shields.io/pypi/v/RedSSH?style=plastic)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg?style=plastic)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 
 [![Test Status](https://travis-ci.com/Red-M/RedSSH.svg?branch=master)](https://travis-ci.com/Red-M/RedSSH)
+[![Documentation Status](https://readthedocs.org/projects/redssh/badge/?version=latest)](https://redssh.readthedocs.io/en/latest/?badge=latest)
 [![Coverage Status](https://coveralls.io/repos/github/Red-M/RedSSH/badge.svg?branch=master)](https://coveralls.io/github/Red-M/RedSSH?branch=master)
 
 Connect to SSH servers in python easily and with C speed!
