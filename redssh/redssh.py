@@ -268,9 +268,9 @@ class RedSSH(object):
         '''
         if self.__check_for_attr__('session')==True and self.__check_for_attr__('channel')==True:
             if channel==None:
-                return(self._block(self.channel.eof)==True)
+                return(self.eof()==True)
             else:
-                return(self._block(self.channel.eof)==True or self._block(channel.eof)==True)
+                return(self.eof()==True or self._block(channel.eof)==True)
 
     def check_host_key(self,hostname,port):
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
