@@ -31,7 +31,7 @@ from redssh import exceptions
 from redssh import enums
 from redssh import sftp
 from redssh import scp
-from redssh import tunnelling
+from redssh import tunneling
 from redssh import x11
 
 
@@ -518,14 +518,14 @@ class RedSSH(object):
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
 
-            class SubHander(tunnelling.LocalPortServerHandler):
+            class SubHander(tunneling.LocalPortServerHandler):
                 ssh_session = self
                 chain_host = remote_host
                 chain_port = remote_port
                 terminate = thread_terminate
                 wchan = wait_for_chan
 
-            tun_server = tunnelling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,remote_host,remote_port,wait_for_chan,error_level)
+            tun_server = tunneling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,remote_host,remote_port,wait_for_chan,error_level)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
             tun_thread.name = enums.TunnelType.local.value+':'+option_string
@@ -557,7 +557,7 @@ class RedSSH(object):
         if not option_string in self.tunnels[enums.TunnelType.remote.value]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
-            tun_thread = threading.Thread(target=tunnelling.remote_tunnel_server,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan,error_level))
+            tun_thread = threading.Thread(target=tunneling.remote_tunnel_server,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan,error_level))
             tun_thread.daemon = True
             tun_thread.name = enums.TunnelType.remote.value+':'+option_string
             tun_thread.start()
@@ -586,14 +586,14 @@ class RedSSH(object):
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
 
-            class SubHander(tunnelling.LocalPortServerHandler):
+            class SubHander(tunneling.LocalPortServerHandler):
                 ssh_session = self
                 chain_host = None
                 chain_port = None
                 terminate = thread_terminate
                 wchan = wait_for_chan
 
-            tun_server = tunnelling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,None,None,wait_for_chan,error_level)
+            tun_server = tunneling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,None,None,wait_for_chan,error_level)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
             tun_thread.name = enums.TunnelType.dynamic.value+':'+option_string
