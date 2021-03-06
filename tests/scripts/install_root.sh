@@ -30,7 +30,7 @@ apt install -y make curl wget openssh-client openssh-server git cmake libssl-dev
 
 # Travis takes care of all the python deps
 if [ -n $CI_SYSTEM ] && [ ${CI_SYSTEM} != "TRAVIS" ]; then
-    apt install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python${PYTHON_VERSION}-pip
+    apt install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-dev python${PYTHON_MAJOR_VERSION}-pip
     apt install -y python${PYTHON_VERSION}-distutils || true
     wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
     python${PYTHON_VERSION} ./get-pip.py
