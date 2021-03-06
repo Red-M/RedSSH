@@ -52,6 +52,8 @@ tests_debtesting:
         - htmlcov
     only:
     - master
+    - release/*
+    - develop
 
 
 tests_debstable:
@@ -65,6 +67,8 @@ tests_debstable:
         - htmlcov
     only:
     - master
+    - release/*
+    - develop
 
 tests_deboldstable:
     image: debian:oldstable
@@ -77,3 +81,5 @@ tests_deboldstable:
         - htmlcov
     only:
     - master
+    - release/*
+    - develop

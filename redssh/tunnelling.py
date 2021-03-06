@@ -179,7 +179,7 @@ def remote_tunnel_server(ssh_session,host,port,bind_addr,local_port,terminate,wa
         except libssh2.exceptions.ChannelUnknownError:
             error = True
             break
-        if terminate.is_set()==True or auto_terminate==False:
+        if terminate.is_set()==True:
             break
         if error==False or auto_terminate==False:
             thread = threading.Thread(target=remote_handle,args=(ssh_session,chan,host,port,terminate,error_level,auto_terminate,_select_timeout))
