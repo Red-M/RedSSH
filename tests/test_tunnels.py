@@ -131,6 +131,35 @@ class RedSSHUnitTest(unittest_base):
         sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.dynamic,dyn_port)
         sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.local,dyn_port)
 
+    # @pytest.mark.xfail
+    def test_auto_terminate_tunnels_tunnels(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('localhost', 0))
+        rem_port = int(sock.getsockname()[1])
+        sock.close()
+
+        sshs = self.start_ssh_session(class_init={auto_terminate_tunnels=True})
+        sshs.wait_for(self.prompt)
+        sshs.sendline('echo')
+        sshs.wait_for(self.prompt)
+        sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
+        out = get_local('http://localhost:'+str(rem_port))
+        assert self.response_text in out
+
+        local_port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
+        out = get_local('http://localhost:'+str(local_port))
+        assert self.response_text in out
+
+        dyn_port = sshs.rs.dynamic_tunnel(0,error_level=self.error_level)
+        out = get_local('http://google.com',headers={'host':'localhost'},proxies={'http':'socks5://localhost:'+str(dyn_port),'https':'socks5://localhost:'+str(dyn_port)})
+        assert self.response_text in out
+
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.local,local_port,self.remote_tunnel_hostname,self.remote_tunnel_port)
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.remote,rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port)
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.dynamic,dyn_port)
+        sshs.rs.shutdown_tunnel(redssh.enums.TunnelType.local,dyn_port)
+
 
 if __name__ == '__main__':
     unittest.main()
