@@ -1,5 +1,5 @@
 
-pages:
+doc_pages:
     image: debian:10
     script:
     - ./tests/scripts/install_root.sh GITLAB 3 7

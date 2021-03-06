@@ -80,7 +80,7 @@ class RedSSHUnitTest(unittest_base):
 
     # @pytest.mark.xfail
     def test_dynamic_tunnel_read_write(self):
-        sshs = self.start_ssh_session()
+        sshs = self.start_ssh_session(class_init={'auto_terminate_tunnels':True})
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
@@ -118,8 +118,8 @@ class RedSSHUnitTest(unittest_base):
         sshs.wait_for(self.prompt)
 
         sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
-        out = get_local('http://localhost:'+str(rem_port))
-        assert self.response_text in out
+        # out = get_local('http://localhost:'+str(rem_port))
+        # assert self.response_text in out
 
         local_port = sshs.rs.local_tunnel(0,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(local_port))
