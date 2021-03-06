@@ -31,7 +31,7 @@ tests_py3.5:
     image: debian:9
     script:
     - ./tests/scripts/install_root.sh GITLAB 3 5
-    - ./tests/scripts/install.sh GITLAB 3 5
+    - ./tests/scripts/install.sh GITLAB 3
     - ./tests/scripts/test.sh GITLAB 3 5
     artifacts:
         paths:
