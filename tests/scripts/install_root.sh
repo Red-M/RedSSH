@@ -16,11 +16,11 @@ fi
 if [ ${CI_SYSTEM} == "TRAVIS" ]; then
     PYTHON_VERSION=${PYTHON_MAJOR_VERSION}
 else
-    if [ ! -z PYTHON_MAJOR_VERSION ]; then
+    if [ ! -z $PYTHON_MAJOR_VERSION ]; then
         PYTHON_VERSION=${PYTHON_MAJOR_VERSION}
     fi
 
-    if [ ! -z PYTHON_MAJOR_VERSION ] && [ ! -z PYTHON_MINOR_VERSION ]; then
+    if [ ! -z $PYTHON_MAJOR_VERSION ] && [ ! -z $PYTHON_MINOR_VERSION ]; then
         PYTHON_VERSION=${PYTHON_VERSION}"."${PYTHON_MINOR_VERSION}
     fi
 fi

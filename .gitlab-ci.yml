@@ -40,3 +40,28 @@ tests_py3.5:
     - master
     - release/*
     - develop
+
+tests_debtesting:
+    image: debian:testing
+    script:
+    - ./tests/scripts/install_root.sh GITLAB 3
+    - ./tests/scripts/install.sh GITLAB 3
+    - ./tests/scripts/test.sh GITLAB 3
+    artifacts:
+        paths:
+        - htmlcov
+    only:
+    - develop
+
+
+tests_debstable:
+    image: debian:stable
+    script:
+    - ./tests/scripts/install_root.sh GITLAB 3
+    - ./tests/scripts/install.sh GITLAB 3
+    - ./tests/scripts/test.sh GITLAB 3
+    artifacts:
+        paths:
+        - htmlcov
+    only:
+    - develop
