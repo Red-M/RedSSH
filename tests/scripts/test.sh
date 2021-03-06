@@ -14,6 +14,8 @@ fi
 if [ -n $CI_SYSTEM ] && [ ${CI_SYSTEM} == "GITLAB" ]; then
     git branch master
     chmod 700 /builds /builds/Red_M
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
 fi
 
 if [ ! -z $CI_SYSTEM ] && [ ${CI_SYSTEM} == "TRAVIS" ]; then
