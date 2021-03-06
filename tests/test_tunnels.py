@@ -116,6 +116,7 @@ class RedSSHUnitTest(unittest_base):
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
+
         sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(rem_port))
         assert self.response_text in out
@@ -145,6 +146,7 @@ class RedSSHUnitTest(unittest_base):
         sshs.wait_for(self.prompt)
         sshs.sendline('echo')
         sshs.wait_for(self.prompt)
+
         sshs.rs.remote_tunnel(rem_port,self.remote_tunnel_hostname,self.remote_tunnel_port,error_level=self.error_level)
         out = get_local('http://localhost:'+str(rem_port))
         assert self.response_text in out
