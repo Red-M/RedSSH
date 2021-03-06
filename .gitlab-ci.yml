@@ -51,7 +51,7 @@ tests_debtesting:
         paths:
         - htmlcov
     only:
-    - develop
+    - master
 
 
 tests_debstable:
@@ -64,4 +64,16 @@ tests_debstable:
         paths:
         - htmlcov
     only:
-    - develop
+    - master
+
+tests_deboldstable:
+    image: debian:oldstable
+    script:
+    - ./tests/scripts/install_root.sh GITLAB 3
+    - ./tests/scripts/install.sh GITLAB 3
+    - ./tests/scripts/test.sh GITLAB 3
+    artifacts:
+        paths:
+        - htmlcov
+    only:
+    - master
