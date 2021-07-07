@@ -56,7 +56,7 @@ class RedSSH(object):
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None
         ,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
         ssh_keepalive_interval=0.0,set_flags={},method_preferences={},
-        callbacks={},auto_terminate_tunnels=False):
+        callbacks={},auto_terminate_tunnels=False,tcp_nodelay=False):
         self.debug = False
         self._auto_select_timeout_enabled = False
         self._select_timeout = 0.005
@@ -78,6 +78,7 @@ class RedSSH(object):
         self.method_preferences = method_preferences
         self.callbacks = callbacks
         self.auto_terminate_tunnels = auto_terminate_tunnels
+        self.tcp_nodelay = tcp_nodelay
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         if known_hosts==None:
@@ -346,6 +347,7 @@ class RedSSH(object):
                 __initial = time.time()
                 self.sock = socket.create_connection((hostname,port),timeout)
                 self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
+                self.sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,self.tcp_nodelay)
                 new_select_timeout = float(time.time()-__initial)*0.95
                 if new_select_timeout>self._select_timeout and self._auto_select_timeout_enabled==True:
                     self._select_timeout = new_select_timeout

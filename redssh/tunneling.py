@@ -57,6 +57,7 @@ class LocalPortServer(SocketServer.ThreadingMixIn,SocketServer.TCPServer):
 
     def server_activate(self):
         self.wchan.set()
+        self.socket.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,self.ssh_session.tcp_nodelay)
         self.socket.listen(self.request_queue_size)
 
     def handle_error(self,request,client_address):
@@ -195,6 +196,7 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level,auto_terminat
     chan_eof = False
     try:
         request = socket.create_connection((host,port))
+        request.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,ssh_session.tcp_nodelay)
     except Exception as e:
         ssh_session._block(chan.close,_select_timeout=_select_timeout)
         return()
