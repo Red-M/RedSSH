@@ -52,6 +52,12 @@ class RedSSH(object):
     :type set_flags: ``dict``
     :param method_preferences: Not supported in ssh2-python 0.18.0
     :type method_preferences: ``dict``
+    :param callbacks: Not supported yet
+    :type callbacks: ``dict``
+    :param auto_terminate_tunnels: Automatically terminate tunnels when errors are detected
+    :type auto_terminate_tunnels: ``bool``
+    :param tcp_nodelay: Set `TCP_NODELAY` for the underlying :func:`socket.socket`, by default this is off via `False`.
+    :type tcp_nodelay: ``bool``
     '''
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None
         ,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
@@ -336,7 +342,7 @@ class RedSSH(object):
         :param look_for_keys: Enable offering keys in ``~/.ssh`` automatically. NOT IMPLEMENTED!
         :type look_for_keys: ``bool``
         :param sock: A pre-connected socket to the remote server. Useful if you have strange network requirements.
-        :type sock: ``socket``
+        :type sock: :func:`socket.socket`
         :param timeout: Timeout for the socket connection to the remote server.
         :type timeout: ``float``
         '''
