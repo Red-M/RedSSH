@@ -513,32 +513,31 @@ class RedSSH(object):
         :type error_level: :class:`redssh.enums.TunnelErrorLevel`
         :return: ``int`` The local port that has been bound.
         '''
-        assert isinstance(remote_host,type(''))
-        assert isinstance(remote_port,type(0))
-        option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
-        if not option_string in self.tunnels[enums.TunnelType.local.value]:
-            wait_for_chan = threading.Event()
-            thread_terminate = threading.Event()
+        if isinstance(remote_host,type('')) and isinstance(remote_port,type(0)):
+            option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
+            if not option_string in self.tunnels[enums.TunnelType.local.value]:
+                wait_for_chan = threading.Event()
+                thread_terminate = threading.Event()
 
-            class SubHander(tunneling.LocalPortServerHandler):
-                ssh_session = self
-                chain_host = remote_host
-                chain_port = remote_port
-                terminate = thread_terminate
-                wchan = wait_for_chan
+                class SubHander(tunneling.LocalPortServerHandler):
+                    ssh_session = self
+                    chain_host = remote_host
+                    chain_port = remote_port
+                    terminate = thread_terminate
+                    wchan = wait_for_chan
 
-            tun_server = tunneling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,remote_host,remote_port,wait_for_chan,error_level)
-            tun_thread = threading.Thread(target=tun_server.serve_forever)
-            tun_thread.daemon = True
-            tun_thread.name = enums.TunnelType.local.value+':'+option_string
-            tun_thread.start()
-            wait_for_chan.wait()
-            if local_port==0:
-                local_port = tun_server.socket.getsockname()[1]
-                option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
+                tun_server = tunneling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,remote_host,remote_port,wait_for_chan,error_level)
+                tun_thread = threading.Thread(target=tun_server.serve_forever)
+                tun_thread.daemon = True
                 tun_thread.name = enums.TunnelType.local.value+':'+option_string
-            self.tunnels[enums.TunnelType.local.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
-        return(local_port)
+                tun_thread.start()
+                wait_for_chan.wait()
+                if local_port==0:
+                    local_port = tun_server.socket.getsockname()[1]
+                    option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
+                    tun_thread.name = enums.TunnelType.local.value+':'+option_string
+                self.tunnels[enums.TunnelType.local.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
+            return(local_port)
 
     def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
         '''
