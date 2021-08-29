@@ -65,8 +65,8 @@ class RedSSH(object):
         callbacks={},auto_terminate_tunnels=False,tcp_nodelay=False):
         self.debug = False
         self._auto_select_timeout_enabled = False
-        self._select_timeout = 0.005
-        self._select_tun_timeout = 0.001
+        self._select_timeout = 0.01
+        self._select_tun_timeout = 0.003
         self._block_lock = multiprocessing.RLock()
         self.__shutdown_all__ = multiprocessing.Event()
         self.encoding = encoding
