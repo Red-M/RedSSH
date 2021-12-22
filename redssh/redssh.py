@@ -67,7 +67,7 @@ class RedSSH(object):
         self._auto_select_timeout_enabled = False
         self._select_timeout = 0.01
         self._select_tun_timeout = 0.003
-        self._block_lock = multiprocessing.RLock()
+        self._block_lock = None
         self.__shutdown_all__ = multiprocessing.Event()
         self.encoding = encoding
         self.tunnels = {
@@ -118,22 +118,23 @@ class RedSSH(object):
     def _block_select(self,_select_timeout=None):
         if _select_timeout==None:
             _select_timeout = self._select_timeout
-        with self._block_lock:
-            block_direction = self.session.block_directions()
-            if block_direction==0:
-                return(None)
+        self.session._block_call(_select_timeout)
+        # with self._block_lock:
+            # block_direction = self.session.block_directions()
+            # if block_direction==0:
+                # return(None)
 
-        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
-            rfds = [self.sock]
-        else:
-            rfds = []
+        # if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
+            # rfds = [self.sock]
+        # else:
+            # rfds = []
 
-        if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
-            wfds = [self.sock]
-        else:
-            wfds = []
+        # if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
+            # wfds = [self.sock]
+        # else:
+            # wfds = []
 
-        select.select(rfds,wfds,[],_select_timeout)
+        # select.select(rfds,wfds,[],_select_timeout)
 
 
     def _block(self,func,*args,**kwargs):
@@ -360,6 +361,7 @@ class RedSSH(object):
             else:
                 self.sock = sock
             self.session = libssh2.Session()
+            self._block_lock = self.session._block_lock
             # self.session.publickey_init()
 
             if not self.set_flags=={}:
