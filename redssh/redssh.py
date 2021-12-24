@@ -64,9 +64,9 @@ class RedSSH(object):
         ssh_keepalive_interval=0.0,set_flags={},method_preferences={},
         callbacks={},auto_terminate_tunnels=False,tcp_nodelay=False):
         self.debug = False
-        self._auto_select_timeout_enabled = False
-        self._select_timeout = 0.01
-        self._select_tun_timeout = 0.003
+        self._auto_select_timeout_enabled = True
+        self._select_timeout = 0.005
+        self._select_tun_timeout = 0.001
         self._block_lock = None
         self.__shutdown_all__ = multiprocessing.Event()
         self.encoding = encoding
@@ -114,28 +114,10 @@ class RedSSH(object):
             timeout = self._block(self.session.keepalive_send,_select_timeout=self._select_timeout)
             self._ssh_keepalive_event.wait(timeout=timeout)
 
-
     def _block_select(self,_select_timeout=None):
         if _select_timeout==None:
             _select_timeout = self._select_timeout
-        self.session._block_call(_select_timeout)
-        # with self._block_lock:
-            # block_direction = self.session.block_directions()
-            # if block_direction==0:
-                # return(None)
-
-        # if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_INBOUND:
-            # rfds = [self.sock]
-        # else:
-            # rfds = []
-
-        # if block_direction & libssh2.LIBSSH2_SESSION_BLOCK_OUTBOUND:
-            # wfds = [self.sock]
-        # else:
-            # wfds = []
-
-        # select.select(rfds,wfds,[],_select_timeout)
-
+        self.session._block_call(_select_timeout,self.session.c_poll_enabled)
 
     def _block(self,func,*args,**kwargs):
         if self.__shutdown_all__.is_set()==False:
@@ -146,8 +128,7 @@ class RedSSH(object):
             else:
                 _select_timeout = float(_select_timeout)
                 del kwargs['_select_timeout']
-            with self._block_lock:
-                out = func(*args,**kwargs)
+            out = libssh2.LIBSSH2_ERROR_EAGAIN
             while out==libssh2.LIBSSH2_ERROR_EAGAIN:
                 self._block_select(_select_timeout)
                 with self._block_lock:
@@ -351,13 +332,9 @@ class RedSSH(object):
             raise(exceptions.NoAuthenticationOfferedException())
         if self.__check_for_attr__('past_login')==False:
             if sock==None:
-                __initial = time.time()
                 self.sock = socket.create_connection((hostname,port),timeout)
                 self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_KEEPALIVE,1)
                 self.sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,self.tcp_nodelay)
-                new_select_timeout = float(time.time()-__initial)*0.95
-                if new_select_timeout>self._select_timeout and self._auto_select_timeout_enabled==True:
-                    self._select_timeout = new_select_timeout
             else:
                 self.sock = sock
             self.session = libssh2.Session()
@@ -378,6 +355,12 @@ class RedSSH(object):
                         # self.session.callback_set(cbtype, self.callbacks[cbtype])
 
             self.session.handshake(self.sock)
+
+            __initial = time.time()
+            self.session.keepalive_send()
+            new_select_timeout = float(time.time()-__initial)
+            if new_select_timeout>self._select_timeout and self._auto_select_timeout_enabled==True:
+                self._select_timeout = new_select_timeout
 
             self.check_host_key(hostname,port) # segfault on real ssh server????
 
