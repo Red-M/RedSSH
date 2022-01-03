@@ -16,12 +16,12 @@ def main():
     print(hostname)
     rs.connect(hostname=hostname,username=username,password=passwd,allow_agent=True,timeout=1.5)
 
-    (local_tun_thread,local_thread_terminate,local_tun_server,local_port) = rs.local_tunnel(0,target_host,80)
+    local_port = rs.local_tunnel(0,target_host,80)
     rs.remote_tunnel(2223,target_host,80)
-    (dyn_tun_thread,dyn_thread_terminate,dyn_tun_server,dyn_port) = rs.dynamic_tunnel(0)
+    dyn_port = rs.dynamic_tunnel(0)
     proxies = {'http':'socks5://localhost:'+str(dyn_port),'https':'socks5://localhost:'+str(dyn_port)}
     local = requests.get('http://localhost:'+str(local_port)).text
-    remote = 'curl: '+rs.command('curl http://localhost:2223/')
+    remote = str(b'curl: '+rs.execute_command('curl http://localhost:2223/')[1],'utf8')
     dynamic = requests.get('http://'+target_host,headers={'host':'localhost'},proxies=proxies).text
 
     print('Local: '+str(test_string in local))

@@ -67,7 +67,8 @@ class RedSSH(object):
         self._auto_select_timeout_enabled = True
         self._select_timeout = 0.005
         self._select_tun_timeout = 0.001
-        self._block_lock = None
+        self.session = libssh2.Session()
+        # self.session.c_poll_use = False
         self.__shutdown_all__ = multiprocessing.Event()
         self.encoding = encoding
         self.tunnels = {
@@ -117,7 +118,7 @@ class RedSSH(object):
     def _block_select(self,_select_timeout=None):
         if _select_timeout==None:
             _select_timeout = self._select_timeout
-        self.session._block_call(_select_timeout,self.session.c_poll_enabled)
+        self.session._block_call(_select_timeout)
 
     def _block(self,func,*args,**kwargs):
         if self.__shutdown_all__.is_set()==False:
@@ -131,7 +132,7 @@ class RedSSH(object):
             out = libssh2.LIBSSH2_ERROR_EAGAIN
             while out==libssh2.LIBSSH2_ERROR_EAGAIN:
                 self._block_select(_select_timeout)
-                with self._block_lock:
+                with self.session._block_lock:
                     out = func(*args,**kwargs)
             return(out)
 
@@ -140,7 +141,7 @@ class RedSSH(object):
         total_written = 0
         while total_written<data_len:
             if self.__shutdown_all__.is_set()==False:
-                with self._block_lock:
+                with self.session._block_lock:
                     (rc,bytes_written) = func(data[total_written:])
                 total_written+=bytes_written
                 if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
@@ -152,13 +153,13 @@ class RedSSH(object):
         remainder_len = 0
         remainder = b''
         if self.__shutdown_all__.is_set()==False:
-            with self._block_lock:
+            with self.session._block_lock:
                 (size,data) = func()
             while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
                 if size==libssh2.LIBSSH2_ERROR_EAGAIN:
                     self._block_select(_select_timeout)
                     if self.__shutdown_all__.is_set()==False:
-                        with self._block_lock:
+                        with self.session._block_lock:
                             (size,data) = func()
                 # if timeout is not None and size==libssh2.LIBSSH2_ERROR_EAGAIN:
                 if size==libssh2.LIBSSH2_ERROR_EAGAIN and (block==False or (max_read>size and max_read!=-1)):
@@ -173,7 +174,7 @@ class RedSSH(object):
                             yield(data[pos:size])
                         pos = size
                     self._block_select(_select_timeout)
-                    with self._block_lock:
+                    with self.session._block_lock:
                         (size,data) = func()
                     pos = 0
             if remainder_len>0:
@@ -337,8 +338,6 @@ class RedSSH(object):
                 self.sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,self.tcp_nodelay)
             else:
                 self.sock = sock
-            self.session = libssh2.Session()
-            self._block_lock = self.session._block_lock
             # self.session.publickey_init()
 
             if not self.set_flags=={}:
