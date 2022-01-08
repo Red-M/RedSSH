@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2022 Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ import select
 import struct
 
 from redssh import enums
-from redssh import libssh2
+from . import libssh2
 
 
 # def forward(self,terminate):

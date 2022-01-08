@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2022 Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,15 +17,18 @@
 '''
 .. module:: redssh
    :platform: Unix
-   :synopsis: Offers the RedSSH automation layer.
+   :synopsis: Offers the RedSSH SSH layer.
 
 .. moduleauthor:: Red_M <redssh_docs@red-m.net>
 
 
 '''
-VERSION = u'2.4.0'
+VERSION = u'2.3.3'
 
-from redssh.redssh import RedSSH
-from redssh import exceptions
-import redssh.libssh2 as libssh2
+from .redssh import RedSSH
+from . import clients
+from .clients.libssh2 import libssh2
+from .clients.libssh import libssh
+from . import exceptions
+from . import enums
 

@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2022 Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@ with open('redssh/__init__.py', 'r') as fh:
 
 deps = [
     # 'ssh2-python'
-    'redlibssh2>=2.2'
+    'redlibssh2>=2.1.1',
+    'redlibssh>=2'
 ]
 
 doc_deps = [
@@ -77,6 +78,9 @@ setuptools.setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',

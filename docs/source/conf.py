@@ -20,7 +20,7 @@ import redssh
 # -- Project information -----------------------------------------------------
 
 project = u'RedSSH'
-copyright = u'2019, Red_M'
+copyright = u'2022, Red_M'
 author = u'Red_M'
 
 # The short X.Y version

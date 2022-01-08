@@ -1,5 +1,5 @@
 # RedSSH
-# Copyright (C) 2018 - 2020  Red_M ( http://bitbucket.com/Red_M )
+# Copyright (C) 2018 - 2022 Red_M ( http://bitbucket.com/Red_M )
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 import os
 
-from redssh import libssh2
+from redssh.clients.libssh2 import libssh2
 from redssh import exceptions
 
 DEFAULT_WRITE_MODE = libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC

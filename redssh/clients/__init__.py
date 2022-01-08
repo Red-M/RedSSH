@@ -14,23 +14,22 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-import enum
+'''
+.. module:: redssh.clients
+   :platform: Unix
+   :synopsis: Provides SSH clients to the RedSSH SSH layer.
 
-class SSHHostKeyVerify(enum.Enum):
-    strict = 0
-    warn = 1
-    warn_auto_add = 2
-    auto_add = 3
-    none = 4
+.. moduleauthor:: Red_M <redssh_docs@red-m.net>
 
-class TunnelType(enum.Enum):
-    local = 'local'
-    remote = 'remote'
-    dynamic = 'dynamic'
-    x11 = 'X11'
 
-class TunnelErrorLevel(enum.Enum):
-    none = 0
-    warn = 1
-    error = 2
-    debug = 3
+'''
+VERSION = u'1.0.0'
+
+import redssh.clients.libssh as libssh
+import redssh.clients.libssh2 as libssh2
+
+default_client = 'LibSSH2'
+enabled_clients = {
+   'LibSSH2': libssh2.LibSSH2,
+   'LibSSH': libssh.LibSSH
+}

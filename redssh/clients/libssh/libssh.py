@@ -14,23 +14,15 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-import enum
+'''
+Just rebinding ssh-python into a slightly nicer format.
+'''
+from ssh import exceptions
+from ssh.session import Session, SSH_READ_PENDING, SSH_WRITE_PENDING, SSH_AUTH_SUCCESS, SSH_AUTH_DENIED, SSH_AUTH_PARTIAL, SSH_AUTH_INFO, SSH_AUTH_AGAIN, SSH_AUTH_ERROR
+from ssh import scp
+from ssh import sftp
+# from ssh import c_ssh
+# from ssh import c_ssh2
+from ssh import options
+from ssh import error_codes
 
-class SSHHostKeyVerify(enum.Enum):
-    strict = 0
-    warn = 1
-    warn_auto_add = 2
-    auto_add = 3
-    none = 4
-
-class TunnelType(enum.Enum):
-    local = 'local'
-    remote = 'remote'
-    dynamic = 'dynamic'
-    x11 = 'X11'
-
-class TunnelErrorLevel(enum.Enum):
-    none = 0
-    warn = 1
-    error = 2
-    debug = 3
