@@ -25,9 +25,12 @@ with open('redssh/__init__.py', 'r') as fh:
     redssh_version = reg.findall(fh.read())[0]
 
 deps = [
-    # 'ssh2-python'
     'redlibssh2>=2.1.1',
     'redlibssh>=2.0.2'
+]
+
+paramiko_deps = [
+    'paramiko'
 ]
 
 doc_deps = [
@@ -66,6 +69,7 @@ setuptools.setup(
     platforms='Posix',
     install_requires=deps,
     extras_require={
+#        'paramiko':list(set(deps+paramiko_deps)),
         'tests':list(set(deps+test_deps)),
         'docs':list(set(deps+doc_deps))
     },

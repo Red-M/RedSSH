@@ -25,11 +25,18 @@
 '''
 VERSION = u'1.0.0'
 
-import redssh.clients.libssh as libssh
-import redssh.clients.libssh2 as libssh2
-
+enabled_clients = {}
 default_client = 'LibSSH2'
-enabled_clients = {
-   'LibSSH2': libssh2.LibSSH2,
-   'LibSSH': libssh.LibSSH
-}
+
+try:
+    import redssh.clients.libssh2 as libssh2
+    enabled_clients['LibSSH2'] = libssh2.LibSSH2
+except:
+    pass
+
+try:
+    import redssh.clients.libssh as libssh
+   enabled_clients['LibSSH'] = libssh.LibSSH
+except:
+    pass
+
