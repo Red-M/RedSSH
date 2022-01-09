@@ -44,6 +44,7 @@ class LibSSH(BaseClient):
     '''
     Instances the start of an SSH connection.
     Extra options are available after :func:`redssh.RedSSH.connect` is called.
+    Older versions of Pageant will not authenticate correctly with this client, please update your agent!
 
     :param encoding: Set the encoding to something other than the default of ``'utf8'`` when your target SSH server doesn't return UTF-8.
     :type encoding: ``str``
@@ -147,40 +148,34 @@ class LibSSH(BaseClient):
                 yield(remainder)
 
     def _auth(self,username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys):
-        # _auth_supported = self.session.userauth_list()
-        auth_supported = self._auth_get_supported() # TODO fix in cython lib because they don't let you know WHICH TYPES ARE SUPPORTED
+        auth_supported = self._auth_get_supported()
         auth_types_tried = []
         if isinstance(auth_supported,type([])):
 
-            if b'publickey' in auth_supported:
+            if libssh.enums.Auth_Method.PUBLICKEY in auth_supported:
                 if allow_agent==True:
                     auth_types_tried.append('publickey')
-                    if self._auth_attempt(self.session.userauth_agent,username)==libssh.SSH_AUTH_SUCCESS:
+                    if self._auth_attempt(self.session.userauth_agent)==libssh.SSH_AUTH_SUCCESS:
                         return()
-                elif not key_filepath==None:
-                    if isinstance(key_filepath,type(''))==True:
-                        key_filepath = [key_filepath]
-                    if isinstance(key_filepath,type([]))==True:
-                        if passphrase==None:
-                            passphrase = ''
-                        for private_key in key_filepath:
-                            if os.path.exists(private_key) and os.path.isfile(private_key):
-                                auth_types_tried.append('publickey')
-                                if self._auth_attempt(self.session.userauth_try_publickey,username,private_key,passphrase)==libssh.SSH_AUTH_SUCCESS:
-                                    return()
+                elif key_filepath!=None:
+                    auth_types_tried.append('publickey')
+                    pkey = libssh.key.import_privkey_file(key_filepath,passphrase)
+                    if self._auth_attempt(self.session.userauth_publickey,pkey)==libssh.SSH_AUTH_SUCCESS:
+                        return()
+
                 # elif host_based==True:
                     # auth_types_tried.append('hostbased')
                     # if res==self._auth_attempt(self.session.userauth_hostbased_fromfile,username,private_key,hostname,passphrase=passphrase):
                         # return()
             if not password==None:
-                if b'password' in auth_supported:
+                if libssh.enums.Auth_Method.PASSWORD in auth_supported:
                     auth_types_tried.append('password')
-                    if self._auth_attempt(self.session.userauth_password,username,password)==libssh.SSH_AUTH_SUCCESS:
+                    if self._auth_attempt(self.session.userauth_password,None,password)==libssh.SSH_AUTH_SUCCESS:
                         return()
-                if b'keyboard-interactive' in auth_supported:
-                    auth_types_tried.append('keyboard-interactive')
-                    if self._auth_attempt(self.session.userauth_keyboardinteractive,username,password)==libssh.SSH_AUTH_SUCCESS:
-                        return()
+                # if libssh.enums.Auth_Method.INTERACTIVE in auth_supported:
+                    # auth_types_tried.append('keyboard-interactive')
+                    # if self._auth_attempt(self.session.userauth_keyboardinteractive,None,password)==libssh.SSH_AUTH_SUCCESS:
+                        # return()
 
         raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
 
@@ -188,13 +183,18 @@ class LibSSH(BaseClient):
         try:
             self.session.userauth_none()
         except Exception as e:
-            return(e.args[0].split(b'continue: ')[1].split(b','))
-        return([])
+            pass
+        server_auth_supported = self.session.userauth_list()
+        auth_supported = []
+        for auth_meth in libssh.enums.Auth_Method:
+            if (server_auth_supported & auth_meth.value)>0:
+                auth_supported.append(auth_meth)
+        return(auth_supported)
 
     def _auth_attempt(self,func,*args,**kwargs):
         try:
             return(func(*args,**kwargs))
-        except:
+        except Exception as e:
             pass
 
     def eof(self):
@@ -228,7 +228,9 @@ class LibSSH(BaseClient):
     def check_host_key(self): # TODO, properly get this working
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
             return(None)
-        self.session.is_server_known()
+        server_known = self.session.is_server_known()
+        if server_known==False:
+            pass
 
     def connect(self,hostname,port=22,username='',password=None,
         allow_agent=False,host_based=None,key_filepath=None,passphrase=None,
@@ -306,9 +308,7 @@ class LibSSH(BaseClient):
                 # self._ssh_keepalive_event = threading.Event()
                 # self._ssh_keepalive_thread.start()
             self.session.set_blocking(False)
-            self.channel = self.open_channel()
-            if self.request_pty==True:
-                self._block(self.channel.request_pty_size,self.terminal,0,0)
+            self.channel = self.open_channel(True,True)
 
             # if 'callback_set' in dir(self.session):
                 # self._forward_x11()
@@ -355,19 +355,20 @@ class LibSSH(BaseClient):
         return(0)
 
     def last_error(self):
-        pass
-        # '''
-        # Get the last error from the current session.
+        '''
+        Get the last error from the current session.
 
-        # :return: ``str``
-        # '''
-        # return(self._block(self.session.last_error))
+        :return: ``str``
+        '''
+        return(self._block(self.session.get_error))
 
-    def open_channel(self,shell=True):
+    def open_channel(self,shell=True,pty=False):
         channel = self._block(self.session.channel_new)
         self._block(channel.set_blocking,False)
         if shell==True:
             self._block(channel.open_session)
+        if self.request_pty==True and pty==True:
+            self._block(channel.request_pty_size,self.terminal,0,0)
         return(channel)
 
     def execute_command(self,command,env=None):
@@ -386,9 +387,7 @@ class LibSSH(BaseClient):
             for key in env:
                 self.setenv(key,env[key])
         out = b''
-        channel = self.open_channel()
-        if self.request_pty==True:
-            self._block(channel.request_pty)
+        channel = self.open_channel(True,True)
         self._block(channel.request_exec,command)
         ret = self._block(channel.get_exit_status)
         while self._block(channel.is_eof)==False and ret==-1:

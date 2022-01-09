@@ -154,7 +154,7 @@ class LibSSH2(BaseClient):
                     auth_types_tried.append('publickey')
                     if self._auth_attempt(self.session.agent_auth,username)==True:
                         return()
-                elif not key_filepath==None:
+                if not key_filepath==None:
                     if isinstance(key_filepath,type(''))==True:
                         key_filepath = [key_filepath]
                     if isinstance(key_filepath,type([]))==True:
@@ -325,14 +325,11 @@ class LibSSH2(BaseClient):
                 self._ssh_keepalive_thread = threading.Thread(target=self.ssh_keepalive)
                 self._ssh_keepalive_event = threading.Event()
                 self._ssh_keepalive_thread.start()
-            self.channel = self._block(self.session.open_session)
-            if self.request_pty==True:
-                self._block(self.channel.pty,self.terminal)
+            self.channel = self.open_channel(True,True)
 
             # if 'callback_set' in dir(self.session):
                 # self._forward_x11()
 
-            self._block(self.channel.shell)
             self.past_login = True
 
     def read(self,block=False):
@@ -384,6 +381,14 @@ class LibSSH2(BaseClient):
         '''
         return(self._block(self.session.last_error))
 
+    def open_channel(self,shell=True,pty=False):
+        channel = self._block(self.session.open_session)
+        if self.request_pty==True and pty==True:
+            self._block(channel.pty,self.terminal)
+        if shell==True:
+            self._block(channel.shell)
+        return(channel)
+
     def execute_command(self,command,env=None):
         '''
         Run a command. This will block as the command executes.
@@ -400,9 +405,7 @@ class LibSSH2(BaseClient):
             for key in env:
                 self.setenv(key,env[key])
         out = b''
-        channel = self._block(self.session.open_session)
-        if self.request_pty==True:
-            self._block(channel.pty)
+        channel = self.open_channel(True,True)
         self._block(channel.execute,command)
         iter = self._read_iter(channel.read,True)
         for data in iter:

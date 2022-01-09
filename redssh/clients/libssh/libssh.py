@@ -21,8 +21,9 @@ from ssh import exceptions
 from ssh.session import Session, SSH_READ_PENDING, SSH_WRITE_PENDING, SSH_AUTH_SUCCESS, SSH_AUTH_DENIED, SSH_AUTH_PARTIAL, SSH_AUTH_INFO, SSH_AUTH_AGAIN, SSH_AUTH_ERROR
 from ssh import scp
 from ssh import sftp
-# from ssh import c_ssh
-# from ssh import c_ssh2
+from ssh import enums
+from ssh import key
 from ssh import options
 from ssh import error_codes
+from ssh import utils
 

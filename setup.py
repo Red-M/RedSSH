@@ -27,7 +27,7 @@ with open('redssh/__init__.py', 'r') as fh:
 deps = [
     # 'ssh2-python'
     'redlibssh2>=2.1.1',
-    'redlibssh>=2'
+    'redlibssh>=2.0.2'
 ]
 
 doc_deps = [
