@@ -202,7 +202,7 @@ class LibSSH(BaseClient):
         Returns ``True`` or ``False`` when the main channel has recieved an ``EOF``.
         '''
         if self.__check_for_attr__('channel')==True:
-            return(self._block(self.channel.eof))
+            return(self._block(self.channel.is_eof))
 
     def methods(self, method):
         pass
