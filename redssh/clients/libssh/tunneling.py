@@ -38,7 +38,7 @@ except ImportError:
 
 def handle_sock_xfer(ssh_session, sock, to_read, self_index, other_index):
     if ssh_session.session.check_c_poll_enabled()==True:
-        return((to_read[self_index] & ssh.utils.pollin)==1 or (to_read[self_index]==0 and self_index==1))
+        return((to_read[self_index] | ssh.utils.pollin)>0 or (to_read[self_index]==0 and self_index==0))
     else:
         return(sock in to_read)
 

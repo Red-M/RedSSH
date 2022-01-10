@@ -36,7 +36,7 @@ except:
 
 try:
     import redssh.clients.libssh as libssh
-   enabled_clients['LibSSH'] = libssh.LibSSH
+    enabled_clients['LibSSH'] = libssh.LibSSH
 except:
     pass
 
