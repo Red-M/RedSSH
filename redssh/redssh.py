@@ -147,6 +147,14 @@ class RedSSH(object):
             return(self.client.flush())
         return(0)
 
+    def last_error(self):
+        '''
+        Get the last error from the client session.
+
+        :return: ``str``
+        '''
+        return(self.client.last_error())
+
     def execute_command(self,command):
         '''
         Run a command. This will block as the command executes.
@@ -298,7 +306,7 @@ class RedSSH(object):
         :type bind_addr: ``str``
         :return: ``None``
         '''
-        self.client.close_tunnels(tunnel_type,sport,rhost,rport,bind_addr)
+        self.client.shutdown_tunnel(tunnel_type,sport,rhost,rport,bind_addr)
 
 
     def close_tunnels(self):
