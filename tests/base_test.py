@@ -1,4 +1,5 @@
 import unittest
+import pytest
 import pwd
 import os
 import sys
@@ -33,6 +34,7 @@ class SSHSession(object):
 
     def sendline(self, line):
         self.rs.send(line+'\r\n')
+
 
 class base_test(unittest.TestCase):
     def setUp(self):

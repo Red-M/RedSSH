@@ -20,6 +20,13 @@ class ObjectProxy(object):
     def __init__(self, obj, sub_obj):
         self.obj = obj
         self.sub_obj = sub_obj
+        self.____init____done____ = True
 
     def __getattr__(self, attr):
-        return getattr(self.obj.__dict__[self.sub_obj], attr)
+        return(getattr(getattr(self.obj, self.sub_obj), attr))
+
+    def __setattr__(self, attr, value):
+        if '____init____done____' in self.__dict__ and attr!='____init____done____':
+            setattr(getattr(self.obj, self.sub_obj), attr, value)
+        else:
+            super().__setattr__(attr, value)

@@ -32,6 +32,9 @@ class RedSCP(object):
         self._ls_re = re.compile(b'^(?P<file_type>[d\\-])(?P<owner_perm>[rwx-]{3})(?P<group_perm>[rwx-]{3})(?P<everyone_perm>[rwx-]{3})\\s+(?P<subitems>\\d+)\\s+(?P<owner_name>.+?)\\s+(?P<group_name>.+?)\\s+(?P<size>\\d+)\\s+(?P<datetime_m>[\\d-]+\\s+[\\d\\:\\.]+)\\s+(?P<tz>[\\-\\+]\\d+)\\s+(?P<file_name>.+?)$',re.MULTILINE)
 
 
+    def _exec_cmd(self,cmd):
+        return(self.ssh_session.execute_command(cmd,channel=self.ssh_session.open_channel(False,False)))
+
     def mkdir(self,remote_path,dir_mode):
         '''
         Makes a directory using SCP on the remote server.
@@ -42,8 +45,8 @@ class RedSCP(object):
         :type dir_mode: ``int``
         :return: ``None``
         '''
-        self.ssh_session.execute_command('mkdir -p '+remote_path)
-        self.ssh_session.execute_command('chmod '+oct(dir_mode)[3:]+' '+remote_path)
+        self._exec_cmd('mkdir -p '+remote_path)
+        self._exec_cmd('chmod '+oct(dir_mode)[3:]+' '+remote_path)
 
     def list_dir(self,remote_path):
         '''
@@ -60,7 +63,7 @@ class RedSCP(object):
         :return: ``dict``
         '''
         out = {'dirs':{},'files':{}}
-        (ret,cmd_out) = self.ssh_session.execute_command('\\ls -la --full-time "'+remote_path+'"')
+        (ret,cmd_out) = self._exec_cmd('\\ls -la --full-time "'+remote_path+'"')
         if ret==0:
             for match in self._ls_re.finditer(cmd_out):
                 file_dict = match.groupdict()

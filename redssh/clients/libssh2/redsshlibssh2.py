@@ -389,7 +389,7 @@ class LibSSH2(BaseClient):
         '''
         return(self._block(self.session.last_error))
 
-    def execute_command(self,command,env=None):
+    def execute_command(self,command,env=None,channel=None):
         '''
         Run a command. This will block as the command executes.
 
@@ -405,7 +405,8 @@ class LibSSH2(BaseClient):
             for key in env:
                 self.setenv(key,env[key])
         out = b''
-        channel = self.open_channel(True,True)
+        if channel==None:
+            channel = self.open_channel(True,pty)
         self._block(channel.execute,command)
         iter = self._read_iter(channel.read,True)
         for data in iter:
