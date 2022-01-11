@@ -23,6 +23,7 @@ import socket
 from . import exceptions
 from . import enums
 from . import clients
+from . import utils
 
 
 class RedSSH(object):
@@ -143,7 +144,7 @@ class RedSSH(object):
 
         :return: ``int`` - Amount of bytes sent to remote machine.
         '''
-        if self.past_login==True:
+        if self.client.past_login==True:
             return(self.client.flush())
         return(0)
 
@@ -173,14 +174,19 @@ class RedSSH(object):
         :return: ``None``
         '''
         self.client.start_sftp()
+        if self.client.past_login and self.client.__check_for_attr__('sftp')==True:
+            self.sftp = utils.ObjectProxy(self.client,'sftp')
 
     def start_scp(self):
         '''
         Start the SCP client.
+        If the client or server doesn't support SCP, SFTP will be started instead, this is due to SCP being deprecated.
 
         :return: ``None``
         '''
         self.client.start_scp()
+        if self.client.past_login and self.client.__check_for_attr__('scp')==True:
+            self.scp = utils.ObjectProxy(self.client,'scp')
 
 
     def forward_x11(self):
