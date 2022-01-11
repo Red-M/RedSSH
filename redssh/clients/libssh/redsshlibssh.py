@@ -105,11 +105,10 @@ class LibSSH(BaseClient):
         total_written = 0
         while total_written<data_len:
             if self.__shutdown_all__.is_set()==False:
+                self._block_select(_select_timeout)
                 with self.session._block_lock:
                     (rc,bytes_written) = func(data[total_written:])
                 total_written+=bytes_written
-                if rc==libssh.error_codes.SSH_AGAIN:
-                    self._block_select(_select_timeout)
         return(total_written)
 
     def _read_iter(self,func,block=False,max_read=-1,_select_timeout=None):
@@ -117,14 +116,21 @@ class LibSSH(BaseClient):
         remainder_len = 0
         remainder = b''
         if self.__shutdown_all__.is_set()==False:
+            self._block_select(_select_timeout)
             with self.session._block_lock:
-                (size,data) = func()
+                try:
+                    (size,data) = func()
+                except libssh.exceptions.EOF:
+                    return(b'')
             while size==libssh.error_codes.SSH_AGAIN or size>0:
                 if size==libssh.error_codes.SSH_AGAIN:
-                    self._block_select(_select_timeout)
                     if self.__shutdown_all__.is_set()==False:
+                        self._block_select(_select_timeout)
                         with self.session._block_lock:
-                            (size,data) = func()
+                            try:
+                                (size,data) = func()
+                            except libssh.exceptions.EOF:
+                                return(b'')
                 # if timeout is not None and size==libssh.error_codes.SSH_AGAIN:
                 if size==libssh.error_codes.SSH_AGAIN and (block==False or (max_read>size and max_read!=-1)):
                     return(b'')
@@ -147,6 +153,24 @@ class LibSSH(BaseClient):
             if remainder_len>0:
                 yield(remainder)
 
+    def _auth_get_supported(self):
+        try:
+            self.session.userauth_none()
+        except Exception as e:
+            pass
+        server_auth_supported = self.session.userauth_list()
+        auth_supported = []
+        for auth_meth in libssh.enums.Auth_Method:
+            if (server_auth_supported & auth_meth.value)>0:
+                auth_supported.append(auth_meth)
+        return(auth_supported)
+
+    def _auth_attempt(self,func,*args,**kwargs):
+        try:
+            return(func(*args,**kwargs))
+        except Exception as e:
+            pass
+
     def _auth(self,username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys):
         auth_supported = self._auth_get_supported()
         auth_types_tried = []
@@ -167,35 +191,18 @@ class LibSSH(BaseClient):
                     # auth_types_tried.append('hostbased')
                     # if res==self._auth_attempt(self.session.userauth_hostbased_fromfile,username,private_key,hostname,passphrase=passphrase):
                         # return()
-            if not password==None:
-                if libssh.enums.Auth_Method.PASSWORD in auth_supported:
+
+            if libssh.enums.Auth_Method.PASSWORD in auth_supported:
+                if not password==None:
                     auth_types_tried.append('password')
                     if self._auth_attempt(self.session.userauth_password,None,password)==libssh.SSH_AUTH_SUCCESS:
                         return()
-                # if libssh.enums.Auth_Method.INTERACTIVE in auth_supported:
-                    # auth_types_tried.append('keyboard-interactive')
-                    # if self._auth_attempt(self.session.userauth_keyboardinteractive,None,password)==libssh.SSH_AUTH_SUCCESS:
-                        # return()
+            # if libssh.enums.Auth_Method.INTERACTIVE in auth_supported:
+                # auth_types_tried.append('keyboard-interactive')
+                # if self._auth_attempt(self.session.userauth_keyboardinteractive,None,password)==libssh.SSH_AUTH_SUCCESS:
+                    # return()
 
         raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
-
-    def _auth_get_supported(self):
-        try:
-            self.session.userauth_none()
-        except Exception as e:
-            pass
-        server_auth_supported = self.session.userauth_list()
-        auth_supported = []
-        for auth_meth in libssh.enums.Auth_Method:
-            if (server_auth_supported & auth_meth.value)>0:
-                auth_supported.append(auth_meth)
-        return(auth_supported)
-
-    def _auth_attempt(self,func,*args,**kwargs):
-        try:
-            return(func(*args,**kwargs))
-        except Exception as e:
-            pass
 
     def eof(self):
         '''
@@ -224,6 +231,15 @@ class LibSSH(BaseClient):
         '''
         if self.past_login==True:
             self._block(self.channel.request_env,varname,value)
+
+    def open_channel(self,shell=True,pty=False):
+        channel = self._block(self.session.channel_new)
+        self._block(channel.set_blocking,False)
+        if shell==True:
+            self._block(channel.open_session)
+        if self.request_pty==True and pty==True:
+            self._block(channel.request_pty_size,self.terminal,0,0)
+        return(channel)
 
     def check_host_key(self): # TODO, properly get this working
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
@@ -362,15 +378,6 @@ class LibSSH(BaseClient):
         '''
         return(self._block(self.session.get_error))
 
-    def open_channel(self,shell=True,pty=False):
-        channel = self._block(self.session.channel_new)
-        self._block(channel.set_blocking,False)
-        if shell==True:
-            self._block(channel.open_session)
-        if self.request_pty==True and pty==True:
-            self._block(channel.request_pty_size,self.terminal,0,0)
-        return(channel)
-
     def execute_command(self,command,env=None):
         '''
         Run a command. This will block as the command executes.
@@ -413,6 +420,8 @@ class LibSSH(BaseClient):
     def start_scp(self):
         '''
         Start the SCP client.
+
+        Note that libssh has deprecated SCP, if this fails to start the SCP client it will transparently start the SFTP client as an alternative.
 
         :return: ``None``
         '''

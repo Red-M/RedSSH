@@ -105,11 +105,10 @@ class LibSSH2(BaseClient):
         total_written = 0
         while total_written<data_len:
             if self.__shutdown_all__.is_set()==False:
+                self._block_select(_select_timeout)
                 with self.session._block_lock:
                     (rc,bytes_written) = func(data[total_written:])
                 total_written+=bytes_written
-                if rc==libssh2.LIBSSH2_ERROR_EAGAIN:
-                    self._block_select(_select_timeout)
         return(total_written)
 
     def _read_iter(self,func,block=False,max_read=-1,_select_timeout=None):
@@ -117,6 +116,7 @@ class LibSSH2(BaseClient):
         remainder_len = 0
         remainder = b''
         if self.__shutdown_all__.is_set()==False:
+            self._block_select(_select_timeout)
             with self.session._block_lock:
                 (size,data) = func()
             while size==libssh2.LIBSSH2_ERROR_EAGAIN or size>0:
@@ -143,6 +143,13 @@ class LibSSH2(BaseClient):
                     pos = 0
             if remainder_len>0:
                 yield(remainder)
+
+    def _auth_attempt(self,func,*args,**kwargs):
+        try:
+            func(*args,**kwargs)
+        except:
+            pass
+        return(self.session.userauth_authenticated())
 
     def _auth(self,username,password,allow_agent,host_based,key_filepath,passphrase,look_for_keys):
         auth_supported = self.session.userauth_list(username)
@@ -182,13 +189,6 @@ class LibSSH2(BaseClient):
         if self.session.userauth_authenticated()==False:
             raise(exceptions.AuthenticationFailedException(list(set(auth_types_tried))))
 
-    def _auth_attempt(self,func,*args,**kwargs):
-        try:
-            func(*args,**kwargs)
-        except:
-            pass
-        return(self.session.userauth_authenticated())
-
     def eof(self):
         '''
         Returns ``True`` or ``False`` when the main channel has recieved an ``EOF``.
@@ -215,6 +215,14 @@ class LibSSH2(BaseClient):
         '''
         if self.past_login==True:
             self._block(self.channel.setenv,varname,value)
+
+    def open_channel(self,shell=True,pty=False):
+        channel = self._block(self.session.open_session)
+        if self.request_pty==True and pty==True:
+            self._block(channel.pty,self.terminal)
+        if shell==True:
+            self._block(channel.shell)
+        return(channel)
 
     def check_host_key(self,hostname,port):
         if self.ssh_host_key_verification==enums.SSHHostKeyVerify.none:
@@ -381,14 +389,6 @@ class LibSSH2(BaseClient):
         '''
         return(self._block(self.session.last_error))
 
-    def open_channel(self,shell=True,pty=False):
-        channel = self._block(self.session.open_session)
-        if self.request_pty==True and pty==True:
-            self._block(channel.pty,self.terminal)
-        if shell==True:
-            self._block(channel.shell)
-        return(channel)
-
     def execute_command(self,command,env=None):
         '''
         Run a command. This will block as the command executes.
@@ -428,6 +428,8 @@ class LibSSH2(BaseClient):
     def start_scp(self):
         '''
         Start the SCP client.
+
+        Note that openssh has deprecated SCP, if this fails to start the SCP client it will transparently start the SFTP client as an alternative if allowed.
 
         :return: ``None``
         '''

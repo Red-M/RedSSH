@@ -38,7 +38,7 @@ except ImportError:
 
 def handle_sock_xfer(ssh_session, sock, to_read, self_index, other_index):
     if ssh_session.session.check_c_poll_enabled()==True:
-        return((to_read[self_index] | ssh.utils.pollin)>0 or (to_read[self_index]==0 and self_index==0))
+        return((to_read[self_index] & ssh.utils.pollin)==1 or (to_read[other_index] & ssh.utils.pollin)==0)
     else:
         return(sock in to_read)
 
@@ -213,7 +213,6 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level,auto_terminat
     tun = ssh.tunnel.Tunnel(ssh_session.session,chan,request)
     (r,w,x) = tun._block_call(_select_timeout)
     # (r,w,x) = select.select([ssh_session.sock],[],[],_select_timeout)
-    # print(r)
     if handle_sock_xfer(ssh_session, ssh_session.session.sock, r, 0, 1)==True:
         for buf in ssh_session._read_iter(chan.read_nonblocking,_select_timeout=_select_timeout):
             if request.send(buf)<=0:

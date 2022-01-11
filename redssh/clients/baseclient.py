@@ -24,7 +24,7 @@ import multiprocessing
 from redssh import exceptions
 from redssh import enums
 
-class BaseClientModules(object):
+class BaseClientModules:
     scp = None
     sftp = None
     tunneling = None
