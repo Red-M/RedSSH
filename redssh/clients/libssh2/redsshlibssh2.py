@@ -28,6 +28,7 @@ import ssh2
 
 from redssh.clients.baseclient import BaseClient, BaseClientModules
 from redssh.clients.libssh2 import libssh2
+from redssh.clients.libssh2 import enums as client_enums
 from redssh import exceptions
 from redssh import enums
 from redssh.clients.libssh2 import sftp
@@ -36,6 +37,7 @@ from redssh.clients.libssh2 import tunneling
 from redssh.clients.libssh2 import x11
 
 class LibSSH2Modules(BaseClientModules):
+    client_enums = client_enums
     scp = scp
     sftp = sftp
     tunneling = tunneling
@@ -75,6 +77,7 @@ class LibSSH2(BaseClient):
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         self._modules = LibSSH2Modules
+        self.enums = self._modules.client_enums
 
     def ssh_keepalive(self):
         timeout = 0.01

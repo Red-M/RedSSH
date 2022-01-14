@@ -25,25 +25,43 @@ from redssh import enums
 from . import libssh
 
 
-# def forward(self,terminate):
+# def forward(self,display_number,terminate):
+    # _select_timeout = float(self._select_tun_timeout)
+    # auto_terminate = bool(self.auto_terminate_tunnels)
+    # self._block(self.channel.request_x11, display_number, False)
+    # wait_for_chan.set()
+    # threads = []
     # while terminate.is_set()==False:
-        # (r,w,x) = select.select([self.sock for self.sock, _ in self.x11_channels], [], [], self._select_tun_timeout)
-
-        # for self.sock, x11_chan in list(self.x11_channels):
-            # for buf in self._read_iter(x11_chan.read):
-                # self._block_write(self.channel.send,data)
-
-            # if self.sock in r:
-                # for buf in self._read_iter(self.channel.read):
-                    # if buf is None:
-                        # self.x11_channels.remove((x11_chan, self.sock))
-                    # else:
-                        # x11_chan.write(buf)
-
-            # if x11_chan.eof():
-                # self.x11_channels.remove((self.sock, x11_chan))
-                # continue
-
-        # if terminate.is_set()==True or self.channel.eof()==True:
+        # error = False
+        # try:
+            # with self.session._block_lock:
+                # chan = self.channel.accept_x11(1)
+            # time.sleep(_select_timeout*50)
+            # while chan==None and terminate.is_set()==False:
+                # self._block_select(_select_timeout)
+                # with self.session._block_lock:
+                    # if terminate.is_set()==False:
+                        # chan = self.channel.accept_x11(1)
+                # time.sleep(_select_timeout*50)
+        # except Exception as e:
+            # print(e)
+            # error = True
             # break
+        # if terminate.is_set()==True:
+            # break
+        # if error==False and terminate.is_set()==False:
+            # thread = threading.Thread(target=x11_handle,args=(self,chan,terminate,error_level,auto_terminate,_select_timeout))
+            # thread.name = 'x11_handle'
+            # threads.append(thread)
+            # thread.start()
+    # terminate.wait()
+    # for thread in threads:
+        # thread.join()
 
+# def x11_handle(self,chan,terminate,error_level,auto_terminate,_select_timeout):
+    # tun = ssh.tunnel.Tunnel(self.session,chan,request)
+    # (r,w,x) = tun._block_call(_select_timeout)
+    # if handle_sock_xfer(self, self.session.sock, r, 0, 1)==True:
+        # for buf in self._read_iter(chan.read_nonblocking,_select_timeout=_select_timeout):
+            # print(buf)
+    # self._block(chan.close,_select_timeout=_select_timeout)

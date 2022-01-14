@@ -24,8 +24,8 @@ class LibSSH2Client(enum.Enum):
     class exceptions(enum.Enum):
         EOF = libssh2.exceptions.ChannelEOFSentError
     class Poll(enum.Enum):
-        read = libssh2.enums.Session.LIBSSH2_SESSION_BLOCK_INBOUND
-        write = libssh2.enums.Session.LIBSSH2_SESSION_BLOCK_OUTBOUND
+        read = libssh2.enums.Session.BLOCK_INBOUND
+        write = libssh2.enums.Session.BLOCK_OUTBOUND
     class Channel(enum.Enum):
         setenv = 'setenv' # TODO set more channel methods below.
         request_pty = 'pty'

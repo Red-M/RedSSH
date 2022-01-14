@@ -37,9 +37,10 @@ class RedSSH(object):
     def __init__(self,encoding='utf8',terminal='vt100',known_hosts=None,ssh_host_key_verification=enums.SSHHostKeyVerify.warn,
         ssh_keepalive_interval=0.0,set_flags={},method_preferences={},callbacks={},auto_terminate_tunnels=False,tcp_nodelay=False):
         self.debug = False
-        self.client = self.pick_client()(encoding=encoding,terminal=terminal,known_hosts=known_hosts,
-            ssh_host_key_verification=ssh_host_key_verification,ssh_keepalive_interval=ssh_keepalive_interval,set_flags=set_flags,method_preferences=method_preferences,
-            callbacks=callbacks,auto_terminate_tunnels=auto_terminate_tunnels,tcp_nodelay=tcp_nodelay)
+        self.client = self.pick_client()(encoding=encoding,terminal=terminal,known_hosts=known_hosts,ssh_host_key_verification=ssh_host_key_verification,
+            ssh_keepalive_interval=ssh_keepalive_interval,set_flags=set_flags,method_preferences=method_preferences,callbacks=callbacks,
+            auto_terminate_tunnels=auto_terminate_tunnels,tcp_nodelay=tcp_nodelay)
+        self.enums = self.client.enums
 
     def pick_client(self,ssh_client=None,custom_ssh_clients={}):
         default_client = clients.default_client

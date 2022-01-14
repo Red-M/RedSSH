@@ -28,7 +28,11 @@ class RedSSHUnitTest(unittest_base):
                 sshs = self.start_ssh_session()
                 sshs.wait_for(self.prompt)
                 sshs.sendline('echo')
-                res = sshs.rs.methods(redssh.libssh2.LIBSSH2_METHOD_CRYPT_SC)
+                if client=='LibSSH2':
+                    res = sshs.rs.methods(redssh.libssh2.LIBSSH2_METHOD_CRYPT_SC)
+                elif client=='LibSSH':
+                    pass # TODO
+
 
     def test_basic_setenv(self):
         for client in sorted(redssh.clients.enabled_clients):
@@ -43,16 +47,17 @@ class RedSSHUnitTest(unittest_base):
                 sshs.wait_for(self.prompt)
                 sshs.sendline('echo')
 
-    # @pytest.mark.parametrize('client', sorted(redssh.clients.enabled_clients))
     # def test_basic_reconnect(self):
-        # sshs = self.start_ssh_session()
-        # sshs.wait_for(self.prompt)
-        # sshs.sendline('echo')
-        # sshs.wait_for(self.prompt)
-        # sshs.rs.exit()
-        # sshs.rs.connect(sshs.connected_hostname, sshs.connected_port,**sshs.connect_args)
-        # sshs.wait_for(self.prompt)
-        # sshs.sendline('echo')
+        # for client in sorted(redssh.clients.enabled_clients):
+            # with self.subTest(client=client):
+                # sshs = self.start_ssh_session()
+                # sshs.wait_for(self.prompt)
+                # sshs.sendline('echo')
+                # sshs.wait_for(self.prompt)
+                # sshs.rs.exit()
+                # sshs.rs.connect(sshs.connected_hostname, sshs.connected_port,**sshs.connect_args)
+                # sshs.wait_for(self.prompt)
+                # sshs.sendline('echo')
 
     def test_basic_last_error(self):
         for client in sorted(redssh.clients.enabled_clients):
@@ -67,7 +72,7 @@ class RedSSHUnitTest(unittest_base):
         for client in sorted(redssh.clients.enabled_clients):
             with self.subTest(client=client):
                 redssh.clients.default_client = client
-                comp = b'zlib,zlib@openssh.com,none'
+                comp = b'zlib,zlib@openssh.com,none' # TODO redlibssh
                 class_init = {
                     'set_flags':{
                         redssh.libssh2.LIBSSH2_FLAG_COMPRESS:True

@@ -25,6 +25,7 @@ from redssh import exceptions
 from redssh import enums
 
 class BaseClientModules:
+    enums = None
     scp = None
     sftp = None
     tunneling = None
@@ -78,6 +79,7 @@ class BaseClient(object):
         else:
             self.known_hosts_path = known_hosts
         self._modules = BaseClientModules
+        self.enums = self._modules.enums
         self.past_login = False
 
 

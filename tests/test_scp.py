@@ -13,18 +13,20 @@ from .base_test import base_test as unittest_base
 class RedSSHUnitTest(unittest_base):
 
     def test_open_scp(self):
-        for client in sorted(redssh.clients.enabled_clients):
+        for client in sorted(['LibSSH2']): #Remove when libssh implements nonblocking SFTP/SCP
+        #for client in sorted(redssh.clients.enabled_clients):
             with self.subTest(client=client):
-                # redssh.clients.default_client = client
+                redssh.clients.default_client = client
                 sshs = self.start_ssh_session()
                 sshs.wait_for(self.prompt)
                 sshs.sendline('echo')
                 sshs.rs.start_scp()
 
     def test_copy_and_open_via_scp(self):
-        for client in sorted(redssh.clients.enabled_clients):
+        for client in sorted(['LibSSH2']): #Remove when libssh implements nonblocking SFTP/SCP
+        #for client in sorted(redssh.clients.enabled_clients):
             with self.subTest(client=client):
-                # redssh.clients.default_client = client
+                redssh.clients.default_client = client
                 test_name = 'test_copy_and_open_via_scp'
                 remote_path = os.path.join(self.remote_dir,test_name)
                 sshs = self.start_ssh_session()
@@ -32,9 +34,10 @@ class RedSSHUnitTest(unittest_base):
                 sshs.rs.scp.put_folder(self.test_dir,remote_path)
 
     def test_file_operations_via_scp(self):
-        for client in sorted(redssh.clients.enabled_clients):
+        for client in sorted(['LibSSH2']): #Remove when libssh implements nonblocking SFTP/SCP
+        #for client in sorted(redssh.clients.enabled_clients):
             with self.subTest(client=client):
-                # redssh.clients.default_client = client
+                redssh.clients.default_client = client
                 test_name = 'test_file_operations_via_scp'
                 remote_path = os.path.join(self.remote_dir,test_name)
                 sshs = self.start_ssh_session(test_name)
@@ -60,9 +63,10 @@ class RedSSHUnitTest(unittest_base):
                     test_path(path)
 
     def test_ignore_existing_dirs_via_scp(self):
-        for client in sorted(redssh.clients.enabled_clients):
+        for client in sorted(['LibSSH2']): #Remove when libssh implements nonblocking SFTP/SCP
+        #for client in sorted(redssh.clients.enabled_clients):
             with self.subTest(client=client):
-                # redssh.clients.default_client = client
+                redssh.clients.default_client = client
                 test_name = 'test_ignore_existing_dirs_via_scp'
                 remote_path = os.path.join(self.remote_dir,test_name)
                 failed = False

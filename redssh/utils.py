@@ -16,6 +16,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
+def repl_setattr(self, attr, value):
+    setattr(getattr(self.obj, self.sub_obj), attr, value)
+
 class ObjectProxy(object):
     def __init__(self, obj, sub_obj):
         self.obj = obj
@@ -26,7 +29,8 @@ class ObjectProxy(object):
         return(getattr(getattr(self.obj, self.sub_obj), attr))
 
     def __setattr__(self, attr, value):
-        if '____init____done____' in self.__dict__ and attr!='____init____done____':
-            setattr(getattr(self.obj, self.sub_obj), attr, value)
+        if '____init____done____' in self.__dict__ and attr!='____init____done____' and attr!=repl_setattr:
+            repl_setattr(self, attr, value)
+            super().__setattr__('__setattr__', repl_setattr)
         else:
             super().__setattr__(attr, value)

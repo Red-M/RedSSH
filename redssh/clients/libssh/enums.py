@@ -19,7 +19,7 @@ from . import libssh
 
 class LibSSHClient(enum.Enum):
     eagain = libssh.enums.SSH.AGAIN
-    auth_eagain = libssh.enums.SSH_AUTH.AGAIN
+    auth_eagain = libssh.enums.Auth.AGAIN
     eof = libssh.enums.SSH.EOF
     class exceptions(enum.Enum):
         EOF = libssh.exceptions.EOF
@@ -27,7 +27,7 @@ class LibSSHClient(enum.Enum):
         read = libssh.enums.SSH.READ_PENDING
         write = libssh.enums.SSH.WRITE_PENDING
     class Channel(enum.Enum):
-        setenv = 'request_env'
+        setenv = 'request_env' # TODO set more channel methods below.
         request_pty = 'request_pty'
         exec_command = 'request_exec'
         get_exit_status = 'get_exit_status'

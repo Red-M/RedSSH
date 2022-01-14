@@ -27,6 +27,7 @@ import select
 
 from redssh.clients.baseclient import BaseClient, BaseClientModules
 from redssh.clients.libssh import libssh
+from redssh.clients.libssh import enums as client_enums
 from redssh import exceptions
 from redssh import enums
 from redssh.clients.libssh import sftp
@@ -35,6 +36,7 @@ from redssh.clients.libssh import tunneling
 from redssh.clients.libssh import x11
 
 class LibSSHModules(BaseClientModules):
+    client_enums = client_enums
     scp = scp
     sftp = sftp
     tunneling = tunneling
@@ -69,12 +71,13 @@ class LibSSH(BaseClient):
         super().__init__(*args,**kwargs)
 
         self.session = libssh.Session()
-        self.set_flags = set_flags
-        self.method_preferences = method_preferences
+        set_flags.update(method_preferences)
+        self.set_options = set_flags
         self.callbacks = callbacks
         self._ssh_keepalive_thread = None
         self._ssh_keepalive_event = None
         self._modules = LibSSHModules
+        self.enums = self._modules.client_enums
 
     def ssh_keepalive(self):
         timeout = 0.01
@@ -217,7 +220,7 @@ class LibSSH(BaseClient):
         # Returns what value was settled on during session negotiation.
         # '''
         # if self.__check_for_attr__('session')==True:
-            # return(self._block(self.session.methods,method))
+            # return(self._block(self.session.options_get,method)) # broken in redlibssh, refer to https://api.libssh.org/stable/group__libssh__session.html#gaaa9d400920cad4d6e4a0fb09ff8c7b01
 
     def setenv(self, varname, value):
         '''
@@ -289,13 +292,9 @@ class LibSSH(BaseClient):
                 self.sock = sock
             # self.session.publickey_init()
 
-            if not self.set_flags=={}:
-                for flag in self.set_flags:
-                    self.session.flag(flag, self.set_flags[flag])
-
-            if not self.method_preferences=={}:
-                for pref in self.method_preferences:
-                    self.session.method_pref(pref, self.method_preferences[pref])
+            # if not self.set_options=={}:
+                # for opt in self.set_options:
+                    # self.session.options_set(opt, self.set_options[opt]) # broken in redlibssh, need to refer to https://api.libssh.org/stable/group__libssh__session.html#ga7a801b85800baa3f4e16f5b47db0a73d
 
             # if 'callback_set' in dir(self.session):
                 # if not self.callbacks=={}:
@@ -378,7 +377,7 @@ class LibSSH(BaseClient):
         '''
         return(self._block(self.session.get_error))
 
-    def execute_command(self,command,env=None):
+    def execute_command(self,command,env=None,channel=None):
         '''
         Run a command. This will block as the command executes.
 
@@ -394,7 +393,8 @@ class LibSSH(BaseClient):
             for key in env:
                 self.setenv(key,env[key])
         out = b''
-        channel = self.open_channel(True,True)
+        if channel==None:
+            channel = self.open_channel(True,True)
         self._block(channel.request_exec,command)
         ret = self._block(channel.get_exit_status)
         while self._block(channel.is_eof)==False and ret==-1:
@@ -429,14 +429,14 @@ class LibSSH(BaseClient):
             self.scp = scp.RedSCP(self)
 
 
-    # def _forward_x11(self):
-        # if libssh2.LIBSSH2_CALLBACK_X11 in self.callbacks:
-            # self.x11_channels = []
-            # disp = 0
-            # thread_terminate = threading.Event()
-            # self._block(self.channel.x11_req, disp)
-            # forward_thread = threading.Thread(target=x11.forward,args=(self,thread_terminate))
-            # forward_thread.daemon = True
-            # forward_thread.name = enums.TunnelType.x11.value+':'+str(disp)
-            # forward_thread.start()
-            # self.tunnels[enums.TunnelType.x11.value][disp] = (forward_thread,thread_terminate,None,None)
+    # def forward_x11(self): # This is also horribly broken in nonblocking mode for libssh
+        # self.x11_channels = []
+        # display_number = 10
+        # thread_terminate = threading.Event()
+        # wait_for_chan = threading.Event()
+        # forward_thread = threading.Thread(target=x11.forward,args=(self,display_number,thread_terminate))
+        # forward_thread.daemon = True
+        # forward_thread.name = enums.TunnelType.x11.value+':'+str(display_number)
+        # forward_thread.start()
+        # self.tunnels[enums.TunnelType.x11.value][display_number] = (forward_thread,thread_terminate,None,None)
+        # wait_for_chan.wait()
