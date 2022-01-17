@@ -70,7 +70,6 @@ class LibSSH(BaseClient):
     def __init__(self,*args,set_flags={},method_preferences={},callbacks={},**kwargs):
         super().__init__(*args,**kwargs)
 
-        self.session = libssh.Session()
         set_flags.update(method_preferences)
         self.set_options = set_flags
         self.callbacks = callbacks
@@ -290,6 +289,8 @@ class LibSSH(BaseClient):
                 self.sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,self.tcp_nodelay)
             else:
                 self.sock = sock
+
+            self.session = libssh.Session()
             # self.session.publickey_init()
 
             # if not self.set_options=={}:

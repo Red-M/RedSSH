@@ -309,13 +309,6 @@ class BaseClient(object):
             for option_string in self.tunnels[thread_type]:
                 (thread,queue,server,server_port) = self.tunnels[thread_type][option_string]
                 self.__shutdown_thread__(thread,queue,server)
-        del self.tunnels
-        self.tunnels = {
-            enums.TunnelType.local.value:{},
-            enums.TunnelType.remote.value:{},
-            enums.TunnelType.dynamic.value:{},
-            enums.TunnelType.x11.value:{}
-        }
 
     def exit(self):
         '''
@@ -323,6 +316,7 @@ class BaseClient(object):
         '''
         if self.past_login==True:
             self.__shutdown_all__.set()
+            self.close_tunnels()
             self.close_tunnels()
             if self.__check_for_attr__('sftp')==True:
                 del self.sftp
@@ -342,4 +336,10 @@ class BaseClient(object):
             self._ssh_keepalive_thread = None
             self._ssh_keepalive_event = None
             self.__shutdown_all__.clear()
+            self.tunnels = {
+                enums.TunnelType.local.value:{},
+                enums.TunnelType.remote.value:{},
+                enums.TunnelType.dynamic.value:{},
+                enums.TunnelType.x11.value:{}
+            }
             self.past_login = False

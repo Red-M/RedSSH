@@ -90,12 +90,17 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                 # https://github.com/rushter/socks5
                 header = self.request.recv(2)
                 version, nmethods = struct.unpack("!BB", header)
-                assert version == self.server.socks_version
-                assert nmethods > 0
+                if not (version == self.server.socks_version and nmethods > 0):
+                    reply = self.generate_failed_reply(address_type, 5)
+                    self.request.sendall(reply)
+                    return()
                 methods = self.get_available_methods(nmethods)
                 self.request.sendall(struct.pack("!BB", self.server.socks_version, 0))
                 version, cmd, _, address_type = struct.unpack("!BBBB", self.request.recv(4))
-                assert version == self.server.socks_version
+                if version != self.server.socks_version:
+                    reply = self.generate_failed_reply(address_type, 5)
+                    self.request.sendall(reply)
+                    return()
                 if address_type == 1:  # IPv4
                     address = socket.inet_ntoa(self.request.recv(4))
                 elif address_type == 3:  # Domain name
@@ -103,24 +108,15 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                     domain_length = self.request.recv(1)[0]
                     address = self.request.recv(domain_length)
                 port = struct.unpack('!H', self.request.recv(2))[0]
-                try:
-                    if cmd == 1:  # CONNECT
-                        remote = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        remote.connect((address, port))
-                        bind_address = remote.getsockname()
-                    else:
-                        self.server.close_request(self.request)
-                    c_addr = struct.unpack("!I", socket.inet_aton(bind_address[0]))[0]
-                    c_port = bind_address[1]
+                if cmd == 1:  # CONNECT
+                    c_addr = struct.unpack("!I", socket.inet_aton('0.0.0.0'))[0]
+                    c_port = port
                     reply = struct.pack("!BBBBIH", self.server.socks_version, 0, 0, address_type, c_addr, c_port)
-                except Exception as err:
-                    self.handle_error(self.request,self.request.getpeername())
-                    reply = self.generate_failed_reply(address_type, 5)
-                self.request.sendall(reply)
-                if reply[1] == 0 and cmd == 1:
+                    self.request.sendall(reply)
                     local_handler(self.ssh_session,self.terminate,self.request,address,port,self.server._select_tun_timeout)
                 else:
-                    self.server.close_request(self.request)
+                    self.handle_error(self.request,self.request.getpeername())
+                    reply = self.generate_failed_reply(address_type, 5)
         finally:
             self.server.close_request(self.request)
             if self.terminate.is_set()==True:
@@ -141,18 +137,18 @@ def local_handler(ssh_session,terminate,request,remote_host,remote_port,_select_
     tun = ssh2.tunnel.Tunnel(ssh_session.session,chan,request)
     # chan_eof = False
     while terminate.is_set()==False:
-        (r,w,x) = tun._block_call(_select_timeout)
+        (r,w,x) = tun._block_call(10)
         no_data = False
         if handle_sock_xfer(ssh_session, ssh_session.session.sock, r, 0, 1)==True and terminate.is_set()==False:
             for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
-                if request.send(buf)<=0:
+                if request.send(buf)<=0 or terminate.is_set()==True:
                     no_data = True
                     break
         if no_data==True or terminate.is_set()==True:
             break
         if handle_sock_xfer(ssh_session, request, r, 1, 0)==True and terminate.is_set()==False:
             try:
-                if ssh_session._block_write(chan.write,request.recv(4096,socket.MSG_DONTWAIT))==0:
+                if ssh_session._block_write(chan.write,request.recv(4096,socket.MSG_DONTWAIT))==0 or terminate.is_set()==True:
                     no_data = True
                     break
             except:
@@ -207,28 +203,18 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level,auto_terminat
         ssh_session._block(chan.close,_select_timeout=_select_timeout)
         return()
     tun = ssh2.tunnel.Tunnel(ssh_session.session,chan,request)
-    (r,w,x) = tun._block_call(_select_timeout)
-    # (r,w,x) = select.select([ssh_session.sock],[],[],_select_timeout)
+    (r,w,x) = tun._block_call(10)
     if handle_sock_xfer(ssh_session, ssh_session.session.sock, r, 0, 1)==True and terminate.is_set()==False:
         for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
             if request.send(buf)<=0:
                 request.close()
                 return()
-    if handle_sock_xfer(ssh_session, ssh_session.session.sock, r, 0, 1)==True:
-        for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
-            if request.send(buf)<=0:
-                request.close()
-                return()
     while terminate.is_set()==False:
-        (r,w,x) = tun._block_call(_select_timeout)
-        # (r,w,x) = select.select([ssh_session.sock,request],[],[],_select_timeout)
-        # print(r)
+        (r,w,x) = tun._block_call(10)
         no_data = False
 
         if terminate.is_set()==False:
-            # print('sock')
             for buf in ssh_session._read_iter(chan.read,_select_timeout=_select_timeout):
-                # print('buf')
                 if request.send(buf)<=0:
                     request.close()
                     no_data = True
@@ -236,7 +222,6 @@ def remote_handle(ssh_session,chan,host,port,terminate,error_level,auto_terminat
         if no_data==True or terminate.is_set()==True:
             break
         if handle_sock_xfer(ssh_session, request, r, 1, 0)==True and terminate.is_set()==False:
-            # print('request')
             try:
                 if ssh_session._block_write(chan.write,request.recv(4096,socket.MSG_DONTWAIT),_select_timeout=_select_timeout)<=0:
                     no_data = True
