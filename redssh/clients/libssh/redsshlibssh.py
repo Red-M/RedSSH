@@ -163,7 +163,7 @@ class LibSSH(BaseClient):
         server_auth_supported = self.session.userauth_list()
         auth_supported = []
         for auth_meth in libssh.enums.Auth_Method:
-            if (server_auth_supported & auth_meth.value)>0:
+            if (server_auth_supported & auth_meth)>0:
                 auth_supported.append(auth_meth)
         return(auth_supported)
 
@@ -437,7 +437,7 @@ class LibSSH(BaseClient):
         # wait_for_chan = threading.Event()
         # forward_thread = threading.Thread(target=x11.forward,args=(self,display_number,thread_terminate))
         # forward_thread.daemon = True
-        # forward_thread.name = enums.TunnelType.x11.value+':'+str(display_number)
+        # forward_thread.name = enums.TunnelType.x11+':'+str(display_number)
         # forward_thread.start()
-        # self.tunnels[enums.TunnelType.x11.value][display_number] = (forward_thread,thread_terminate,None,None)
+        # self.tunnels[enums.TunnelType.x11][display_number] = (forward_thread,thread_terminate,None,None)
         # wait_for_chan.wait()

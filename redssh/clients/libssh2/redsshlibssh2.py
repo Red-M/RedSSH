@@ -450,6 +450,6 @@ class LibSSH2(BaseClient):
             # self._block(self.channel.x11_req, disp)
             # forward_thread = threading.Thread(target=x11.forward,args=(self,thread_terminate))
             # forward_thread.daemon = True
-            # forward_thread.name = enums.TunnelType.x11.value+':'+str(disp)
+            # forward_thread.name = enums.TunnelType.x11+':'+str(disp)
             # forward_thread.start()
-            # self.tunnels[enums.TunnelType.x11.value][disp] = (forward_thread,thread_terminate,None,None)
+            # self.tunnels[enums.TunnelType.x11][disp] = (forward_thread,thread_terminate,None,None)

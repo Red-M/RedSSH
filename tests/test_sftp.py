@@ -36,6 +36,8 @@ class RedSSHUnitTest(unittest_base):
                 sshs.rs.sftp.rename(file_to_rename,renamed)
                 sshs.rs.sftp.mkdir(dir_to_test,16877)
                 sshs.rs.sftp.rmdir(dir_to_test)
+                self.tearDown()
+                self.setUp()
 
     def test_symblink_file_operations_via_sftp(self):
         for client in sorted(redssh.clients.enabled_clients):
@@ -66,7 +68,7 @@ class RedSSHUnitTest(unittest_base):
                 sshs.rs.sftp.setstat(file_to_stat,attrs)
                 sshs.rs.sftp.stat(file_to_stat)
                 sshs.rs.sftp.statvfs(file_to_stat)
-                fs = sshs.rs.sftp.open(file_to_stat,redssh.clients.libssh2.sftp.DEFAULT_READ_MODE,redssh.clients.libssh2.sftp.DEFAULT_FILE_MODE,True)
+                fs = sshs.rs.sftp.open(file_to_stat,sshs.rs.client.enums.SFTP.DEFAULT_READ_MODE,sshs.rs.client.enums.SFTP.DEFAULT_FILE_MODE,True)
                 attrs = fs.fstat()
                 try:
                     fs.fsetstat(attrs)
@@ -88,10 +90,16 @@ class RedSSHUnitTest(unittest_base):
                 for remove in [True,False]:
                     dir_list = sshs.rs.sftp.list_dir(dir_to_list,remove)
                     for item in dir_list:
-                        if remove==True:
-                            assert item[0]!=redssh.libssh2.LIBSSH2_ERROR_EAGAIN and item[0]>0
-                        elif remove==False:
-                            assert item[0]==redssh.libssh2.LIBSSH2_ERROR_EAGAIN or item[0]>0
+                        if client=='LibSSH2':
+                            if remove==True:
+                                assert item[0]!=sshs.rs.client.enums.Client.eagain.value and item[0]>0
+                            elif remove==False:
+                                assert item[0]==sshs.rs.client.enums.Client.eagain.value or item[0]>0
+                        if client=='LibSSH':
+                            if remove==True:
+                                assert item[0]!=sshs.rs.client.enums.Client.eagain.value and len(item[0])>0
+                            elif remove==False:
+                                assert item[0]==sshs.rs.client.enums.Client.eagain.value or len(item[0])>0
 
     def test_copy_and_open_via_sftp(self):
         for client in sorted(redssh.clients.enabled_clients):
@@ -113,7 +121,7 @@ class RedSSHUnitTest(unittest_base):
                 sshs.rs.start_sftp()
                 sshs.rs.sftp.put_folder(self.test_dir,remote_path)
                 def test_path(path):
-                    sftp_f = sshs.rs.sftp.open(path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR)
+                    sftp_f = sshs.rs.sftp.open(path,sshs.rs.client.enums.SFTP.DEFAULT_READ_MODE,sshs.rs.client.enums.SFTP_S.IRUSR)
                     assert b'THIS IS A TEST' in sshs.rs.sftp.read(sftp_f,iter=False)
                     sshs.rs.sftp.seek(sftp_f,0)
                     file_data = b''
@@ -159,7 +167,7 @@ class RedSSHUnitTest(unittest_base):
                 sshs.rs.start_sftp()
                 sshs.rs.sftp.put_folder(self.test_dir,remote_path)
                 file_path = os.path.join(remote_path,'test_sftp.py')
-                f = sshs.rs.sftp.open(file_path,redssh.libssh2.LIBSSH2_FXF_READ,redssh.libssh2.LIBSSH2_SFTP_S_IRUSR,True)
+                f = sshs.rs.sftp.open(file_path,sshs.rs.client.enums.SFTP.DEFAULT_READ_MODE,sshs.rs.client.enums.SFTP_S.IRUSR,True)
                 f.close()
                 f.open()
                 assert b'THIS IS A TEST' in f.read(iter=False)

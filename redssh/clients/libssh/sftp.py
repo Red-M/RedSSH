@@ -19,11 +19,12 @@
 import os
 
 from redssh.clients.libssh import libssh
+from redssh.clients.libssh import enums
 from redssh import exceptions
 
-DEFAULT_WRITE_MODE = libssh.enums.SFTP_AT.O_RDWR.value|libssh.enums.SFTP_AT.O_CREAT.value|libssh.enums.SFTP_AT.O_TRUNC.value
-DEFAULT_READ_MODE = libssh.enums.SFTP_AT.O_RDONLY.value
-DEFAULT_FILE_MODE = 0o664
+DEFAULT_WRITE_MODE = enums.SFTP.DEFAULT_WRITE_MODE
+DEFAULT_READ_MODE = enums.SFTP.DEFAULT_READ_MODE
+DEFAULT_FILE_MODE = enums.SFTP.DEFAULT_FILE_MODE
 
 class RedSFTP(object):
     '''
@@ -373,7 +374,7 @@ class RedSFTPFile(object):
     def open(self):
         if self.file_obj==None:
             self.file_obj = self.sftp.ssh_session._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
-            self.sftp.ssh_session._block(self.file_obj.set_nonblocking)
+            # self.sftp.ssh_session._block(self.file_obj.set_nonblocking) # Broken?
 
     def fsetstat(self,*args,**kwargs):
         return(self.sftp.setstat(self.remote_path,*args,**kwargs))

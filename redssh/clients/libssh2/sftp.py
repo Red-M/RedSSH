@@ -19,11 +19,12 @@
 import os
 
 from redssh.clients.libssh2 import libssh2
+from redssh.clients.libssh2 import enums
 from redssh import exceptions
 
-DEFAULT_WRITE_MODE = libssh2.LIBSSH2_FXF_WRITE|libssh2.LIBSSH2_FXF_CREAT|libssh2.LIBSSH2_FXF_TRUNC
-DEFAULT_READ_MODE = libssh2.LIBSSH2_FXF_READ
-DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR | libssh2.LIBSSH2_SFTP_S_IRGRP | libssh2.LIBSSH2_SFTP_S_IWGRP | libssh2.LIBSSH2_SFTP_S_IROTH
+DEFAULT_WRITE_MODE = enums.SFTP.DEFAULT_WRITE_MODE
+DEFAULT_READ_MODE = enums.SFTP.DEFAULT_READ_MODE
+DEFAULT_FILE_MODE = enums.SFTP.DEFAULT_FILE_MODE
 
 class RedSFTP(object):
     '''

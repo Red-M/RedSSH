@@ -25,8 +25,8 @@ with open('redssh/__init__.py', 'r') as fh:
     redssh_version = reg.findall(fh.read())[0]
 
 deps = [
-    'redlibssh2>=2.1.1',
-    'redlibssh>=2.0.2'
+    'redlibssh2>=2.1.1-1',
+    'redlibssh>=2.0.3'
 ]
 
 paramiko_deps = [

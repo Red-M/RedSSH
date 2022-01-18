@@ -25,7 +25,7 @@ from redssh import exceptions
 from redssh import enums
 
 class BaseClientModules:
-    enums = None
+    client_enums = None
     scp = None
     sftp = None
     tunneling = None
@@ -63,10 +63,10 @@ class BaseClient(object):
         self.encoding = encoding
         self.request_pty = True
         self.tunnels = {
-            enums.TunnelType.local.value:{},
-            enums.TunnelType.remote.value:{},
-            enums.TunnelType.dynamic.value:{},
-            enums.TunnelType.x11.value:{}
+            enums.TunnelType.local:{},
+            enums.TunnelType.remote:{},
+            enums.TunnelType.dynamic:{},
+            enums.TunnelType.x11:{}
         }
         self.auto_terminate_tunnels = auto_terminate_tunnels
         self._auto_select_timeout_enabled = True
@@ -79,7 +79,7 @@ class BaseClient(object):
         else:
             self.known_hosts_path = known_hosts
         self._modules = BaseClientModules
-        self.enums = self._modules.enums
+        self.enums = self._modules.client_enums
         self.past_login = False
 
 
@@ -129,7 +129,7 @@ class BaseClient(object):
         '''
         if isinstance(remote_host,type('')) and isinstance(remote_port,type(0)):
             option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
-            if not option_string in self.tunnels[enums.TunnelType.local.value]:
+            if not option_string in self.tunnels[enums.TunnelType.local]:
                 wait_for_chan = threading.Event()
                 thread_terminate = threading.Event()
 
@@ -143,14 +143,14 @@ class BaseClient(object):
                 tun_server = self._modules.tunneling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,remote_host,remote_port,wait_for_chan,error_level)
                 tun_thread = threading.Thread(target=tun_server.serve_forever)
                 tun_thread.daemon = True
-                tun_thread.name = enums.TunnelType.local.value+':'+option_string
+                tun_thread.name = enums.TunnelType.local+':'+option_string
                 tun_thread.start()
                 wait_for_chan.wait()
                 if local_port==0:
                     local_port = tun_server.socket.getsockname()[1]
                     option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
-                    tun_thread.name = enums.TunnelType.local.value+':'+option_string
-                self.tunnels[enums.TunnelType.local.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
+                    tun_thread.name = enums.TunnelType.local+':'+option_string
+                self.tunnels[enums.TunnelType.local][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
             return(local_port)
 
     def remote_tunnel(self,local_port,remote_host,remote_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
@@ -169,15 +169,15 @@ class BaseClient(object):
         :return: ``None``
         '''
         option_string = str(bind_addr)+':'+str(local_port)+':'+remote_host+':'+str(remote_port)
-        if not option_string in self.tunnels[enums.TunnelType.remote.value]:
+        if not option_string in self.tunnels[enums.TunnelType.remote]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
             tun_thread = threading.Thread(target=self._modules.tunneling.remote_tunnel_server,args=(self,remote_host,remote_port,bind_addr,local_port,thread_terminate,wait_for_chan,error_level))
             tun_thread.daemon = True
-            tun_thread.name = enums.TunnelType.remote.value+':'+option_string
+            tun_thread.name = enums.TunnelType.remote+':'+option_string
             tun_thread.start()
             wait_for_chan.wait()
-            self.tunnels[enums.TunnelType.remote.value][option_string] = (tun_thread,thread_terminate,None,None)
+            self.tunnels[enums.TunnelType.remote][option_string] = (tun_thread,thread_terminate,None,None)
         return(None)
 
     def dynamic_tunnel(self,local_port,bind_addr='127.0.0.1',error_level=enums.TunnelErrorLevel.warn):
@@ -197,7 +197,7 @@ class BaseClient(object):
         :return: ``int`` The local port that has been bound.
         '''
         option_string = bind_addr+':'+str(local_port)
-        if not option_string in self.tunnels[enums.TunnelType.dynamic.value]:
+        if not option_string in self.tunnels[enums.TunnelType.dynamic]:
             wait_for_chan = threading.Event()
             thread_terminate = threading.Event()
 
@@ -211,14 +211,14 @@ class BaseClient(object):
             tun_server = self._modules.tunneling.LocalPortServer((bind_addr,local_port),SubHander,self,thread_terminate,None,None,wait_for_chan,error_level)
             tun_thread = threading.Thread(target=tun_server.serve_forever)
             tun_thread.daemon = True
-            tun_thread.name = enums.TunnelType.dynamic.value+':'+option_string
+            tun_thread.name = enums.TunnelType.dynamic+':'+option_string
             tun_thread.start()
             wait_for_chan.wait()
             if local_port==0:
                 local_port = tun_server.socket.getsockname()[1]
                 option_string = bind_addr+':'+str(local_port)
-                tun_thread.name = enums.TunnelType.dynamic.value+':'+option_string
-            self.tunnels[enums.TunnelType.dynamic.value][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
+                tun_thread.name = enums.TunnelType.dynamic+':'+option_string
+            self.tunnels[enums.TunnelType.dynamic][option_string] = (tun_thread,thread_terminate,tun_server,local_port)
         return(local_port)
 
     def tunnel_is_alive(self,tunnel_type,sport,rhost=None,rport=None,bind_addr='127.0.0.1'):
@@ -256,8 +256,8 @@ class BaseClient(object):
                 option_string = str(bind_addr)+':'+str(sport)+':'+rhost+':'+str(rport)
             else:
                 return(False)
-            if option_string in self.tunnels[tunnel_type.value]:
-                (thread,queue,server,server_port) = self.tunnels[tunnel_type.value][option_string]
+            if option_string in self.tunnels[tunnel_type]:
+                (thread,queue,server,server_port) = self.tunnels[tunnel_type][option_string]
                 return(thread.is_alive())
 
     def shutdown_tunnel(self,tunnel_type,sport,rhost=None,rport=None,bind_addr='127.0.0.1'):
@@ -295,10 +295,10 @@ class BaseClient(object):
                 option_string = str(bind_addr)+':'+str(sport)+':'+rhost+':'+str(rport)
             else:
                 return()
-            if option_string in self.tunnels[tunnel_type.value]:
-                (thread,queue,server,server_port) = self.tunnels[tunnel_type.value][option_string]
+            if option_string in self.tunnels[tunnel_type]:
+                (thread,queue,server,server_port) = self.tunnels[tunnel_type][option_string]
                 self.__shutdown_thread__(thread,queue,server)
-                del self.tunnels[tunnel_type.value][option_string]
+                del self.tunnels[tunnel_type][option_string]
 
 
     def close_tunnels(self):
@@ -337,9 +337,9 @@ class BaseClient(object):
             self._ssh_keepalive_event = None
             self.__shutdown_all__.clear()
             self.tunnels = {
-                enums.TunnelType.local.value:{},
-                enums.TunnelType.remote.value:{},
-                enums.TunnelType.dynamic.value:{},
-                enums.TunnelType.x11.value:{}
+                enums.TunnelType.local:{},
+                enums.TunnelType.remote:{},
+                enums.TunnelType.dynamic:{},
+                enums.TunnelType.x11:{}
             }
             self.past_login = False

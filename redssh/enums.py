@@ -16,20 +16,23 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import enum
 
-class SSHHostKeyVerify(enum.Enum):
+class StrEnum(str, enum.Enum):
+    pass
+
+class SSHHostKeyVerify(enum.IntEnum):
     strict = 0
     warn = 1
     warn_auto_add = 2
     auto_add = 3
     none = 4
 
-class TunnelType(enum.Enum):
+class TunnelType(StrEnum):
     local = 'local'
     remote = 'remote'
     dynamic = 'dynamic'
     x11 = 'X11'
 
-class TunnelErrorLevel(enum.Enum):
+class TunnelErrorLevel(enum.IntEnum):
     none = 0
     warn = 1
     error = 2

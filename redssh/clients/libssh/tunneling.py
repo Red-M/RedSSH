@@ -109,10 +109,7 @@ class LocalPortServerHandler(SocketServer.BaseRequestHandler):
                     address = self.request.recv(domain_length)
                 port = struct.unpack('!H', self.request.recv(2))[0]
                 if cmd == 1:  # CONNECT
-                    c_addr = struct.unpack("!I", socket.inet_aton('0.0.0.0'))[0]
-                    c_port = port
-                    reply = struct.pack("!BBBBIH", self.server.socks_version, 0, 0, address_type, c_addr, c_port)
-                    self.request.sendall(reply)
+                    self.request.sendall(struct.pack("!BBBBIH", self.server.socks_version, 0, 0, 1, 0, 0))
                     local_handler(self.ssh_session,self.terminate,self.request,address,port,self.server._select_tun_timeout)
                 else:
                     self.handle_error(self.request,self.request.getpeername())

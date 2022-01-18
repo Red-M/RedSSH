@@ -53,9 +53,9 @@ class RedSCP(object):
         # :return: ``None``
         # '''
         # print(remote_path)
-        # scp = self._scp(libssh.enums.SCP.WRITE.value | libssh.enums.SCP.RECURSIVE.value,'/')
+        # scp = self._scp(libssh.enums.SCP.WRITE | libssh.enums.SCP.RECURSIVE,'/')
         # print(scp)
-        # print(libssh.enums.SCP.WRITE.value)
+        # print(libssh.enums.SCP.WRITE)
         # print(self._block(scp.push_directory,remote_path,dir_mode))
         # del scp
 
