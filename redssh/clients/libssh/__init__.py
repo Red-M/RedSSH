@@ -25,6 +25,7 @@
 '''
 VERSION = u'1.0.0'
 
-from redssh.clients.libssh.redsshlibssh import LibSSH
+from .redsshlibssh import LibSSH
+from . import libssh as lib_enums
 from redssh import exceptions
 

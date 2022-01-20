@@ -41,6 +41,10 @@ class RedSFTP(object):
         self._block(self.channel.request_sftp)
         self.client = self._block(self.ssh_session.session.sftp_new_channel,self.channel)
 
+    def __del__(self):
+        del self.client
+        del self.channel
+
     def _block(self,func,*args,**kwargs):
         return(self.ssh_session._block(func,*args,**kwargs))
 

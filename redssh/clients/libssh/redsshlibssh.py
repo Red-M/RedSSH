@@ -427,7 +427,7 @@ class LibSSH(BaseClient):
         :return: ``None``
         '''
         if self.past_login and self.__check_for_attr__('scp')==False:
-            self.scp = scp.RedSCP(self)
+            self.scp = scp.RedSFTP(self)
 
 
     # def forward_x11(self): # This is also horribly broken in nonblocking mode for libssh
