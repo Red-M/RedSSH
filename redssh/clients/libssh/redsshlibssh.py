@@ -30,14 +30,14 @@ from redssh.clients.libssh import libssh
 from redssh.clients.libssh import enums as client_enums
 from redssh import exceptions
 from redssh import enums
+from redssh import utils
 from redssh.clients.libssh import sftp
-from redssh.clients.libssh import scp
 from redssh.clients.libssh import tunneling
 from redssh.clients.libssh import x11
 
 class LibSSHModules(BaseClientModules):
     client_enums = client_enums
-    scp = scp
+    scp = sftp
     sftp = sftp
     tunneling = tunneling
     x11 = x11
@@ -417,6 +417,7 @@ class LibSSH(BaseClient):
         '''
         if self.past_login and self.__check_for_attr__('sftp')==False:
             self.sftp = sftp.RedSFTP(self)
+            self.scp = utils.ObjectProxy(self,'sftp')
 
     def start_scp(self):
         '''
@@ -427,7 +428,7 @@ class LibSSH(BaseClient):
         :return: ``None``
         '''
         if self.past_login and self.__check_for_attr__('scp')==False:
-            self.scp = scp.RedSFTP(self)
+            self.start_sftp()
 
 
     # def forward_x11(self): # This is also horribly broken in nonblocking mode for libssh
