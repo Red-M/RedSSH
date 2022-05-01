@@ -28,6 +28,7 @@ fi
 
 echo "*********** Coveralls ***********"
 coverage html
+coverage xml
 if [ ! -z $CI_SYSTEM ]; then
     coveralls || true
 fi
