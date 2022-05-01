@@ -29,7 +29,7 @@ class RedSFTPFile(object):
         self.close()
 
     def open(self):
-        if self.__check_for_attr__('file_obj')==False:
+        if self.__check_for_attr__(self,'file_obj')==False:
             self.file_obj = self.sftp.ssh_session._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
 
     def fsetstat(self,*args,**kwargs):
@@ -57,6 +57,6 @@ class RedSFTPFile(object):
         return(self.sftp.write(self.file_obj,*args,**kwargs))
 
     def close(self):
-        if self.__check_for_attr__('file_obj')==True:
+        if self.__check_for_attr__(self,'file_obj')==True:
             self.sftp.close(self.file_obj)
             del self.file_obj
