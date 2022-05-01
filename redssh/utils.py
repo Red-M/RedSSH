@@ -34,3 +34,7 @@ class ObjectProxy(object):
             super().__setattr__('__setattr__', repl_setattr)
         else:
             super().__setattr__(attr, value)
+
+
+def check_for_attr(self,attr):
+    return(attr in self.__dict__)

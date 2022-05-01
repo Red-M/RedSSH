@@ -25,7 +25,7 @@ import multiprocessing
 import socket
 import select
 
-from redssh.clients.baseclient import BaseClient, BaseClientModules
+from redssh.clients.base_client import BaseClient, BaseClientModules
 from redssh.clients.libssh import libssh
 from redssh.clients.libssh import enums as client_enums
 from redssh import exceptions

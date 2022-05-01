@@ -20,6 +20,7 @@ import os
 
 from redssh.clients.libssh import libssh
 from redssh.clients.libssh import enums
+from redssh.clients.base_sftp import RedSFTPFile
 from redssh import exceptions
 
 DEFAULT_WRITE_MODE = enums.SFTP.DEFAULT_WRITE_MODE
@@ -347,68 +348,4 @@ class RedSFTP(object):
         f = self.open(remote_path,DEFAULT_WRITE_MODE,os.stat(local_path).st_mode)
         self.write(f,open(local_path,'rb').read())
         self.close(f)
-
-class RedSFTPFile(object):
-    '''
-    Interact with files over SFTP using a class rather than passing a file handle around.
-
-    .. warning::
-    This class simply uses the functions from `redssh.sftp.RedSFTP` minus any requirement for the `file_obj` argument for calls.
-
-    :param sftp: `redssh.sftp.RedSFTP` object from the session you'd like to interact via.
-    :type sftp: `redssh.sftp.RedSFTP`
-    :param remote_path: Path that file is located at on the remote server.
-    :type remote_path: ``str``
-    :param sftp_flags: Flags for the SFTP session to understand what you are going to do with the file.
-    :type sftp_flags: ``int``
-    :param file_mode: File mode for the file being opened.
-    :type file_mode: ``int``
-    '''
-    def __init__(self,sftp,remote_path,sftp_flags,file_mode):
-        self.sftp = sftp
-        self.remote_path = remote_path
-        self.sftp_flags = sftp_flags
-        self.file_mode = file_mode
-        self.file_obj = None
-        self.open()
-
-    def __del__(self):
-        self.close()
-
-    def open(self):
-        if self.file_obj==None:
-            self.file_obj = self.sftp.ssh_session._block(self.sftp.client.open,self.remote_path,self.sftp_flags,self.file_mode)
-            # self.sftp.ssh_session._block(self.file_obj.set_nonblocking) # Broken?
-
-    def fsetstat(self,*args,**kwargs):
-        return(self.sftp.setstat(self.remote_path,*args,**kwargs))
-
-    def fstat(self):
-        return(self.sftp.fstat(self.file_obj))
-
-    def fstatvfs(self):
-        return(self.sftp.fstatvfs(self.file_obj))
-
-    def fsync(self):
-        return(self.sftp.fsync(self.file_obj))
-
-    def read(self,*args,**kwargs):
-        return(self.sftp.read(self.file_obj,*args,**kwargs))
-
-    def rewind(self):
-        return(self.sftp.rewind(self.file_obj))
-
-    def seek(self,*args,**kwargs):
-        return(self.sftp.seek(self.file_obj,*args,**kwargs))
-
-    def write(self,*args,**kwargs):
-        return(self.sftp.write(self.file_obj,*args,**kwargs))
-
-    def close(self):
-        if self.file_obj!=None:
-            del self.file_obj
-        self.file_obj = None
-
-
-
 
