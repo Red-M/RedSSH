@@ -44,6 +44,8 @@ class RedSSH(object):
     :type encoding: ``str``
     :param terminal: Set the terminal sent to the remote server to something other than the default of ``'vt100'``.
     :type terminal: ``str``
+    :param known_hosts: Set the known hosts file to a set location other than ``'~/.ssh/known_hosts'``, ``None`` is the default location.
+    :type known_hosts: ``str``
     :param ssh_host_key_verification: Change the behaviour of remote host key verification. Can be set to one of the following values, ``strict``, ``warn``, ``auto_add`` or ``none``.
     :type ssh_host_key_verification: :class:`redssh.enums.SSHHostKeyVerify`
     :param ssh_keepalive_interval: Enable or disable SSH keepalive packets, value is interval in seconds, ``0`` is off.
