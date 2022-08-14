@@ -21,11 +21,14 @@ class Client(enum.IntEnum):
     eagain = libssh2.enums.ErrorCodes.EAGAIN.value
     auth_eagain = libssh2.enums.ErrorCodes.EAGAIN.value
     eof = libssh2.enums.ErrorCodes.CHANNEL_EOF_SENT.value
+
 class Exceptions(enum.Enum):
     EOF = libssh2.exceptions.ChannelEOFSentError
+
 class Poll(enum.IntEnum):
     read = libssh2.enums.Session.BLOCK_INBOUND.value
     write = libssh2.enums.Session.BLOCK_OUTBOUND.value
+
 class Channel(enum.Enum):
     setenv = 'setenv' # TODO set more channel methods below.
     request_pty = 'pty'
@@ -36,24 +39,28 @@ class Channel(enum.Enum):
     flush = 'flush'
     send_eof = 'send_eof'
     close = 'close'
+
 class SFTP(enum.IntEnum):
     DEFAULT_WRITE_MODE = libssh2.LIBSSH2_FXF_WRITE | libssh2.LIBSSH2_FXF_CREAT | libssh2.LIBSSH2_FXF_TRUNC
     DEFAULT_READ_MODE = libssh2.LIBSSH2_FXF_READ
     DEFAULT_FILE_MODE = libssh2.LIBSSH2_SFTP_S_IRUSR | libssh2.LIBSSH2_SFTP_S_IWUSR | libssh2.LIBSSH2_SFTP_S_IRGRP | libssh2.LIBSSH2_SFTP_S_IWGRP | libssh2.LIBSSH2_SFTP_S_IROTH
+
 class SFTP_S(enum.IntEnum):
     # File mode masks
     # Read, write, execute/search by owner
-   IRWXU = libssh2.enums.SFTP.S_IRWXU.value
-   IRUSR = libssh2.enums.SFTP.S_IRUSR.value
-   IWUSR = libssh2.enums.SFTP.S_IWUSR.value
-   IXUSR = libssh2.enums.SFTP.S_IXUSR.value
+    IRWXU = libssh2.enums.SFTP.S_IRWXU.value
+    IRUSR = libssh2.enums.SFTP.S_IRUSR.value
+    IWUSR = libssh2.enums.SFTP.S_IWUSR.value
+    IXUSR = libssh2.enums.SFTP.S_IXUSR.value
     # Read, write, execute/search by group
-   IRWXG = libssh2.enums.SFTP.S_IRWXG.value
-   IRGRP = libssh2.enums.SFTP.S_IRGRP.value
-   IWGRP = libssh2.enums.SFTP.S_IWGRP.value
-   IXGRP = libssh2.enums.SFTP.S_IXGRP.value
+    IRWXG = libssh2.enums.SFTP.S_IRWXG.value
+    IRGRP = libssh2.enums.SFTP.S_IRGRP.value
+    IWGRP = libssh2.enums.SFTP.S_IWGRP.value
+    IXGRP = libssh2.enums.SFTP.S_IXGRP.value
     # Read, write, execute/search by others
-   IRWXO = libssh2.enums.SFTP.S_IRWXO.value
-   IROTH = libssh2.enums.SFTP.S_IROTH.value
-   IWOTH = libssh2.enums.SFTP.S_IWOTH.value
-   IXOTH = libssh2.enums.SFTP.S_IXOTH.value
+    IRWXO = libssh2.enums.SFTP.S_IRWXO.value
+    IROTH = libssh2.enums.SFTP.S_IROTH.value
+    IWOTH = libssh2.enums.SFTP.S_IWOTH.value
+    IXOTH = libssh2.enums.SFTP.S_IXOTH.value
+
+

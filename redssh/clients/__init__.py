@@ -25,13 +25,14 @@
 '''
 import redssh.clients.libssh as libssh
 import redssh.clients.libssh2 as libssh2
+from redssh.enums import SSHClient
 
 VERSION = u'1.0.0'
 
 enabled_clients = {}
-default_client = 'LibSSH2'
+default_client = SSHClient.libssh2
 
 
-enabled_clients['LibSSH2'] = libssh2.LibSSH2
-enabled_clients['LibSSH'] = libssh.LibSSH
+enabled_clients[SSHClient.libssh2] = libssh2.LibSSH2
+enabled_clients[SSHClient.libssh] = libssh.LibSSH
 

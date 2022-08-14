@@ -37,3 +37,7 @@ class TunnelErrorLevel(enum.IntEnum):
     warn = 1
     error = 2
     debug = 3
+
+class SSHClient(StrEnum):
+    libssh2 = 'LibSSH2'
+    libssh = 'LibSSH'
