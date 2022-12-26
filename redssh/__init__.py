@@ -23,7 +23,7 @@
 
 
 '''
-VERSION = u'2.3.3'
+VERSION = u'3.0.0'
 
 from .redssh import RedSSH
 from . import clients
