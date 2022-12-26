@@ -23,16 +23,24 @@
 
 
 '''
-import redssh.clients.libssh as libssh
-import redssh.clients.libssh2 as libssh2
 from redssh.enums import SSHClient
 
 VERSION = u'1.0.0'
 
 enabled_clients = {}
-default_client = SSHClient.libssh2
 
 
-enabled_clients[SSHClient.libssh2] = libssh2.LibSSH2
-enabled_clients[SSHClient.libssh] = libssh.LibSSH
+try:
+   import redssh.clients.libssh as libssh
+   enabled_clients[SSHClient.libssh] = libssh.LibSSH
+   default_client = SSHClient.libssh
+except:
+   pass
+
+try:
+   import redssh.clients.libssh2 as libssh2
+   enabled_clients[SSHClient.libssh2] = libssh2.LibSSH2
+   default_client = SSHClient.libssh2
+except:
+   pass
 
