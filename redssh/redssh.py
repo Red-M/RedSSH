@@ -157,15 +157,21 @@ class RedSSH(object):
         '''
         return(self.client.last_error())
 
-    def execute_command(self,command):
+    def execute_command(self,command,env=None,channel=None,pty=False):
         '''
         Run a command. This will block as the command executes.
 
         :param command: Command to execute.
         :type command: ``str``
+        :param env: Environment variables to set during ``command``.
+        :type env: ``dict``
+        :param channel: Use an existing SSH channel instead of spawning a new one.
+        :type channel: ``redssh.RedSSH.channel``
+        :param pty: Request a pty for the command to be executed via.
+        :type pty: ``bool``
         :return: ``tuple (int, str)`` - of ``(return_code, command_output)``
         '''
-        return(self.client.execute_command(command))
+        return(self.client.execute_command(command,env=env,channel=channel,pty=pty))
 
     def start_sftp(self):
         '''

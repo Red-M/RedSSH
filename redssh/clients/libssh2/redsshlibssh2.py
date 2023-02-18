@@ -337,7 +337,7 @@ class LibSSH2(BaseClient):
                 self._ssh_keepalive_thread = threading.Thread(target=self.ssh_keepalive)
                 self._ssh_keepalive_event = threading.Event()
                 self._ssh_keepalive_thread.start()
-            self.channel = self.open_channel(True,True)
+            self.channel = self.open_channel(True,self.request_pty)
 
             # if 'callback_set' in dir(self.session):
                 # self._forward_x11()
@@ -393,7 +393,7 @@ class LibSSH2(BaseClient):
         '''
         return(self._block(self.session.last_error))
 
-    def execute_command(self,command,env=None,channel=None):
+    def execute_command(self,command,env=None,channel=None,pty=False):
         '''
         Run a command. This will block as the command executes.
 
@@ -401,6 +401,10 @@ class LibSSH2(BaseClient):
         :type command: ``str``
         :param env: Environment variables to set during ``command``.
         :type env: ``dict``
+        :param channel: Use an existing SSH channel instead of spawning a new one.
+        :type channel: ``redssh.RedSSH.channel``
+        :param pty: Request a pty for the command to be executed via.
+        :type pty: ``bool``
         :return: ``tuple (int, str)`` - of ``(return_code, command_output)``
         '''
         if env==None:
@@ -418,6 +422,7 @@ class LibSSH2(BaseClient):
         self._block(channel.wait_eof)
         self._block(channel.close)
         ret = self._block(channel.get_exit_status)
+        del channel
         return(ret,out)
 
     def start_sftp(self):

@@ -8,7 +8,7 @@ import multiprocessing
 import redssh
 
 from .base_test import base_test as unittest_base
-
+from redssh.clients.libssh2.libssh2 import exceptions as libssh2_exceptions
 
 class RedSSHUnitTest(unittest_base):
 
@@ -139,6 +139,18 @@ class RedSSHUnitTest(unittest_base):
                 sshs.sendline('echo')
                 sshs.wait_for(self.prompt)
                 sshs.sendline('echo')
+
+    def test_exec_command(self):
+        for client in sorted(redssh.clients.enabled_clients):
+            with self.subTest(client=client):
+                redssh.clients.default_client = client
+                sshs = self.start_ssh_session()
+                sshs.wait_for(self.prompt)
+                try:
+                    (ret,out) = sshs.rs.execute_command('echo')
+                    assert ret == 0
+                except libssh2_exceptions.BadUseError:
+                    pass
 
 
 if __name__ == '__main__':
