@@ -1,0 +1,45 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1733412085,
+        "narHash": "sha256-FillH0qdWDt/nlO6ED7h4cmN+G9uXwGjwmCnHs0QVYM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "4dc2fc4e62dbf62b84132fe526356fbac7b03541",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-24.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "outoftree": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-oE8Mqjyt4WH0ojURuMl8vaHoNlR1uBW2JWLx6+QfeMU=",
+        "path": "./pkgs",
+        "type": "path"
+      },
+      "original": {
+        "path": "./pkgs",
+        "type": "path"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "outoftree": "outoftree"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

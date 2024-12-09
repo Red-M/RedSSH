@@ -19,17 +19,17 @@ class RedSSHUnitTest(unittest_base):
                     if 'SSH_AUTH_SOCK' in os.environ:
                         old_ssh_agent = os.environ['SSH_AUTH_SOCK']
                         del os.environ['SSH_AUTH_SOCK']
-                    proc = subprocess.run('/usr/bin/ssh-agent',env=os.environ,capture_output=True,check=True,text=True)
+                    proc = subprocess.run(self.ssh_bin_path('/usr/bin','ssh-agent'),env=os.environ,capture_output=True,check=True,text=True)
                     stdout = proc.stdout
                     os.environ['SSH_AUTH_SOCK'] = stdout.split(';')[0].split('=')[-1]
                     agent_pid = stdout.split(';')[-2].split(' ')[-1]
-                    subprocess.run(['/usr/bin/ssh-add',self.key_path],env=os.environ, check=True)
+                    subprocess.run([self.ssh_bin_path('/usr/bin','ssh-add'),self.key_path],env=os.environ, check=True)
                     sshs = self.start_ssh_session(class_init={},connect_args={'password':'','allow_agent':True})
                     sshs.wait_for(self.prompt)
                     sshs.sendline('echo')
                     if 'old_ssh_agent' in locals():
                         os.environ['SSH_AUTH_SOCK'] = old_ssh_agent
-                    subprocess.run(['/bin/kill',agent_pid],env=os.environ, check=True)
+                    subprocess.run(['kill',agent_pid],env=os.environ, check=True)
                 except redssh.exceptions.AuthenticationFailedException:
                     pass
 
@@ -59,6 +59,7 @@ class RedSSHUnitTest(unittest_base):
         for client in sorted(redssh.clients.enabled_clients):
             with self.subTest(client=client):
                 redssh.clients.default_client = client
+                print(self.key_path)
                 sshs = self.start_ssh_session(class_init={},connect_args={'password':None,'allow_agent':False,'key_filepath':self.key_path})
                 sshs.wait_for(self.prompt)
                 sshs.sendline('echo')

@@ -99,6 +99,9 @@ class base_test(unittest.TestCase):
         self.ssh_sessions.append(sshs)
         return(sshs)
 
+    def ssh_bin_path(self,path,bin):
+        return(os.path.join(os.environ.get('REDSSH_TESTS_SSHBIN_PATH',path),bin))
+
     def end_ssh_session(self,sshs):
         sshs.rs.exit()
 
@@ -111,3 +114,4 @@ class base_test(unittest.TestCase):
             shutil.rmtree(self.real_remote_dir)
         except:
             pass
+

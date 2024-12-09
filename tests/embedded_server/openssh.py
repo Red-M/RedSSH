@@ -25,9 +25,8 @@ from jinja2 import Template
 DIR_NAME = os.path.dirname(__file__)
 PDIR_NAME = os.path.dirname(DIR_NAME)
 PPDIR_NAME = os.path.dirname(PDIR_NAME)
-SERVER_KEY = os.path.abspath(os.path.sep.join([DIR_NAME, 'rsa.key']))
-SSHD_CONFIG_TMPL = os.path.abspath(os.path.sep.join(
-    [DIR_NAME, 'sshd_config.tmpl']))
+SERVER_KEY = os.path.abspath(os.path.sep.join([DIR_NAME, 'ed25519.key']))
+SSHD_CONFIG_TMPL = os.path.abspath(os.path.sep.join([DIR_NAME, 'sshd_config.tmpl']))
 SSHD_CONFIG = os.path.abspath(os.path.sep.join([DIR_NAME, 'sshd_config']))
 
 
@@ -58,8 +57,8 @@ class OpenSSHServer(object):
             fh.write(os.linesep)
 
     def start_server(self):
-        cmd = ['/usr/sbin/sshd', '-D', '-p', str(self.port),
-               '-h', self.server_key, '-f', self.sshd_config]
+        cmd = [os.path.join(os.environ.get('REDSSH_TESTS_SSHBIN_PATH','/usr/sbin'),'sshd'), '-D', '-e', '-p', str(self.port), '-h', self.server_key, '-f', self.sshd_config]
+        print(' '.join(cmd))
         server = Popen(cmd)
         self.server_proc = server
         self._wait_for_port()
